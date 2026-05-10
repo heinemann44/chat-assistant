@@ -1,0 +1,31 @@
+# Changelog por fase
+
+Cada fase do projeto tem um arquivo aqui, resumindo o que foi feito, por que, e o que ficou pendente. Lê na ordem.
+
+| Fase | Status | Resumo |
+|------|--------|--------|
+| [Phase 0](./phase-0-setup.md) | ✅ | Setup do projeto Next.js + deps + Drizzle/Supabase config |
+| [Phase 1](./phase-1-schema.md) | ✅ | Schema do banco (9 tabelas), RLS, seed do tenant default |
+| Phase 2 | ⏳ | Auth Supabase + shell do painel admin |
+| Phase 3 | ⏳ | Domínio agnóstico + LLM stub |
+| Phase 4 | ⏳ | Canal Telegram (webhook) + página de canais no admin |
+| Phase 5 | ⏳ | Tom configurável |
+| Phase 6 | ⏳ | LLM real configurável (Anthropic/OpenAI) |
+| Phase 7 | ⏳ | FAQs CRUD + matching |
+| Phase 8 | ⏳ | Handoff humano + cron de expiração |
+| Phase 9 | ⏳ | Polish + deploy de produção |
+
+## Stack final
+
+- **Next.js 16** (App Router) + React 19 + TypeScript + Tailwind
+- **Vercel** (hosting)
+- **Supabase** Postgres + Auth + Vault
+- **Drizzle ORM** (queries type-safe; migrations aplicadas via Supabase MCP)
+- **grammy** (SDK Telegram)
+- **zod** (validação), **pino** (logs), **vitest** (testes)
+
+## Princípio de arquitetura
+
+> Single-tenant no produto hoje; schema e abstrações já multi-tenant + multi-canal.
+
+`lib/core/` é puro TypeScript de domínio: não importa de `lib/channels/`, `lib/llm/`, ou `lib/db/`. Recebe tudo via interfaces (`ChannelAdapter`, `LLMProvider`). É o que permite plugar WhatsApp/Slack e trocar Claude/OpenAI sem refactor.
