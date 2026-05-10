@@ -9,7 +9,7 @@ Cada fase do projeto tem um arquivo aqui, resumindo o que foi feito, por que, e 
 | [Phase 2](./phase-2-auth.md) | ✅ | Auth Supabase (email+senha), proxy de proteção, shell do painel |
 | [Phase 3](./phase-3-domain-stub.md) | ✅ | Domínio agnóstico (ports + pipeline + intent + tom) + LLM stub + 34 testes |
 | [Phase 4](./phase-4-telegram-webhook.md) | ✅ | Canal Telegram (webhook), repos Drizzle, página `/channels`, vault dos tokens |
-| Phase 5 | ⏳ | Tom configurável |
+| [Phase 5](./phase-5-tone.md) | ✅ | Página `/tone` com presets + custom, validada com zod |
 | Phase 6 | ⏳ | LLM real configurável (Anthropic/OpenAI) |
 | Phase 7 | ⏳ | FAQs CRUD + matching |
 | Phase 8 | ⏳ | Handoff humano + cron de expiração |
