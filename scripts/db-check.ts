@@ -50,7 +50,18 @@ async function check(label: string, url: string | undefined, expectations: {
     const rows = await sql<{ ok: number; role: string }[]>`SELECT 1 AS ok, current_user AS role`;
     ok(`connected as ${rows[0]?.role}`);
   } catch (err) {
-    fail(`query failed: ${(err as Error).message}`);
+    const message = (err as Error).message;
+    if (/tenant or user not found/i.test(message)) {
+      console.error(`\x1b[31m✗\x1b[0m query failed: ${message}`);
+      console.error("");
+      console.error("  → The pooler does not recognize this tenant.");
+      console.error("    Most common cause: wrong region or prefix in the hostname.");
+      console.error("    Fix: copy the URL VERBATIM from Supabase dashboard");
+      console.error("         Settings → Database → Connection string → Transaction pooler.");
+      console.error("    Do not hand-edit the region — replace only [YOUR-PASSWORD].");
+      process.exit(1);
+    }
+    fail(`query failed: ${message}`);
   } finally {
     await sql.end({ timeout: 1 });
   }
