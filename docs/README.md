@@ -7,7 +7,7 @@ Cada fase do projeto tem um arquivo aqui, resumindo o que foi feito, por que, e 
 | [Phase 0](./phase-0-setup.md) | ✅ | Setup do projeto Next.js + deps + Drizzle/Supabase config |
 | [Phase 1](./phase-1-schema.md) | ✅ | Schema do banco (9 tabelas), RLS, seed do tenant default |
 | [Phase 2](./phase-2-auth.md) | ✅ | Auth Supabase (email+senha), proxy de proteção, shell do painel |
-| Phase 3 | ⏳ | Domínio agnóstico + LLM stub |
+| [Phase 3](./phase-3-domain-stub.md) | ✅ | Domínio agnóstico (ports + pipeline + intent + tom) + LLM stub + 34 testes |
 | Phase 4 | ⏳ | Canal Telegram (webhook) + página de canais no admin |
 | Phase 5 | ⏳ | Tom configurável |
 | Phase 6 | ⏳ | LLM real configurável (Anthropic/OpenAI) |
