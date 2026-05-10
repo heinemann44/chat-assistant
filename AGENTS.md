@@ -63,10 +63,19 @@ proxy.ts                raiz — auth gate + session refresh
 - **Migrations via Supabase MCP** (`mcp__supabase__apply_migration`), não via `drizzle-kit migrate`. Drizzle é só pra tipos no app code.
 - **Manter `lib/db/schema.ts` em sync** com cada migration aplicada — sync é manual, revisado nos commits.
 - **RLS obrigatório** em todas as tabelas. Policies escopadas por `public.current_tenant_id()` pra `authenticated`. Service role bypassa.
-- **`SECURITY DEFINER` só quando estritamente necessário** (ex.: trigger em `auth.users`). Sempre com `SET search_path = public` e `REVOKE EXECUTE FROM PUBLIC, anon, authenticated` se for callable via PostgREST.
+- **`SECURITY DEFINER` só quando estritamente necessário** (ex.: trigger em `auth.users`, RPCs que precisam tocar schema `vault`). Sempre com `SET search_path = public` (e `extensions` se usar `vault.*`) e `REVOKE EXECUTE FROM PUBLIC, anon` — se for callable por admin, `GRANT EXECUTE TO authenticated` e aceite o warning do advisor.
 - **`SET search_path = public` em toda função `plpgsql`** — proteção contra hijack.
 - **`updated_at` automático** via trigger `set_updated_at()` BEFORE UPDATE.
-- **Rodar `get_advisors` (`security` e `performance`)** depois de cada migration. Zero lints antes de commitar.
+- **Rodar `get_advisors` (`security` e `performance`)** depois de cada migration. Zero lints novos antes de commitar (os 2 warnings esperados das RPCs SECURITY DEFINER são aceitos).
+
+## Acesso ao banco no código
+
+Dois caminhos, com regra clara de quando usar cada um:
+
+- **Drizzle** (`lib/db/client.ts` → pooler do Supabase, role `postgres`): código **servidor sem usuário**. Bypassa RLS. Usar em webhook handlers, leituras de `vault`, repos consumidos pelo pipeline.
+- **Supabase JS** (`createSupabaseServerClient`): código **sob sessão de admin**. RLS escopa por `current_tenant_id()` via JWT. Usar em Server Components do `(admin)` e Server Actions.
+- Quando um Server Action precisa de algo privilegiado (ex.: ler segredo do vault), composição: lookup RLS-scoped via Supabase JS pra confirmar ownership → operação privilegiada via Drizzle.
+- Mutações que precisam mexer em `vault` ou em schemas não-`public` ficam em RPC `SECURITY DEFINER` com tenant check interno; Server Actions chamam a RPC via `supabase.rpc(...)`.
 
 ## Auth
 

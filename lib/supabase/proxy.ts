@@ -4,6 +4,12 @@ import { NextResponse, type NextRequest } from "next/server";
 // Refreshes the Supabase session on every request and enforces auth.
 // Returns either the original NextResponse (allow) or a redirect.
 export async function updateSession(request: NextRequest) {
+  // API routes (webhooks, cron) handle their own auth and shouldn't pay the
+  // cost of a Supabase Auth roundtrip on every request.
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
