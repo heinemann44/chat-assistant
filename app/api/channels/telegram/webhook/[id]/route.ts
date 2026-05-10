@@ -70,25 +70,38 @@ export async function POST(
       }),
     ]);
 
-    const llm = createLLMProvider(llmConfig);
-    const result = await processMessage(
-      {
-        incoming: {
-          channel: "telegram",
-          channelInstanceId: channel.id,
-          externalUserId: parsed.incoming.externalUserId,
-          externalUserName: parsed.incoming.externalUserName,
-          text: parsed.incoming.text,
-          receivedAt: parsed.incoming.receivedAt,
-        },
-        tone,
-        systemExtras: llmConfig.systemExtras,
-        history: convo.recentMessages,
-      },
-      { llm },
-    );
-
     const adapter = new TelegramAdapter(token);
+    const llm = await createLLMProvider(llmConfig);
+
+    let result;
+    try {
+      result = await processMessage(
+        {
+          incoming: {
+            channel: "telegram",
+            channelInstanceId: channel.id,
+            externalUserId: parsed.incoming.externalUserId,
+            externalUserName: parsed.incoming.externalUserName,
+            text: parsed.incoming.text,
+            receivedAt: parsed.incoming.receivedAt,
+          },
+          tone,
+          systemExtras: llmConfig.systemExtras,
+          history: convo.recentMessages,
+        },
+        { llm },
+      );
+    } catch (err) {
+      log.error({ err, provider: llm.name }, "LLM call failed; sending fallback");
+      await adapter
+        .sendMessage(
+          parsed.incoming.externalUserId,
+          "Desculpe, estou com problemas técnicos no momento. Tente novamente em alguns minutos.",
+        )
+        .catch((sendErr) => log.error({ err: sendErr }, "fallback sendMessage also failed"));
+      return NextResponse.json({ ok: false });
+    }
+
     for (const reply of result.replies) {
       await adapter.sendMessage(parsed.incoming.externalUserId, reply.text);
     }
