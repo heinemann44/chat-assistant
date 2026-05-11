@@ -1,8 +1,9 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import type {
   ChannelInstanceSummary,
   ConfigRepo,
+  FaqItem,
   HandoffRuntimeConfig,
   LlmRuntimeConfig,
 } from "@/lib/core/ports/config-repo";
@@ -11,6 +12,7 @@ import type { Tone, TonePreset } from "@/lib/core/types";
 import { db } from "../client";
 import {
   channelInstances,
+  faqs,
   handoffConfig,
   llmConfig,
   toneConfig,
@@ -70,6 +72,25 @@ export class DrizzleConfigRepo implements ConfigRepo {
       systemExtras: row.systemExtras,
       zaiPlan: row.zaiPlan as LlmRuntimeConfig["zaiPlan"],
     };
+  }
+
+  async getActiveFaqs(tenantId: string): Promise<FaqItem[]> {
+    const rows = await db
+      .select({
+        id: faqs.id,
+        question: faqs.question,
+        answer: faqs.answer,
+        keywords: faqs.keywords,
+      })
+      .from(faqs)
+      .where(and(eq(faqs.tenantId, tenantId), eq(faqs.enabled, true)))
+      .orderBy(faqs.createdAt);
+    return rows.map((r) => ({
+      id: r.id,
+      question: r.question,
+      answer: r.answer,
+      keywords: r.keywords,
+    }));
   }
 
   async getHandoffConfig(tenantId: string): Promise<HandoffRuntimeConfig> {

@@ -10,8 +10,8 @@ Cada fase do projeto tem um arquivo aqui, resumindo o que foi feito, por que, e 
 | [Phase 3](./phase-3-domain-stub.md) | ✅ | Domínio agnóstico (ports + pipeline + intent + tom) + LLM stub + 34 testes |
 | [Phase 4](./phase-4-telegram-webhook.md) | ✅ | Canal Telegram (webhook), repos Drizzle, página `/channels`, vault dos tokens |
 | [Phase 5](./phase-5-tone.md) | ✅ | Página `/tone` com presets + custom, validada com zod |
-| [Phase 6](./phase-6-llm-real.md) | ✅ | LLM real (Claude/OpenAI), vault pra API key, `/llm` no admin |
-| Phase 7 | ⏳ | FAQs CRUD + matching |
+| [Phase 6](./phase-6-llm-real.md) | ✅ | LLM real (Claude/OpenAI/Z.AI), vault pra API key, `/llm` no admin |
+| [Phase 7](./phase-7-faqs.md) | ✅ | FAQs CRUD + injeção no system prompt |
 | Phase 8 | ⏳ | Handoff humano + cron de expiração |
 | Phase 9 | ⏳ | Polish + deploy de produção |
 

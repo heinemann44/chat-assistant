@@ -27,6 +27,13 @@ export type ChannelInstanceSummary = {
   botTokenSecretId: string | null;
 };
 
+export type FaqItem = {
+  id: string;
+  question: string;
+  answer: string;
+  keywords: string[];
+};
+
 // Reads tenant-scoped configuration the pipeline needs. Implementations are
 // expected to be the source of truth; pipeline never reads config directly.
 export interface ConfigRepo {
@@ -34,4 +41,5 @@ export interface ConfigRepo {
   getTone(tenantId: string): Promise<Tone>;
   getLlmConfig(tenantId: string): Promise<LlmRuntimeConfig>;
   getHandoffConfig(tenantId: string): Promise<HandoffRuntimeConfig>;
+  getActiveFaqs(tenantId: string): Promise<FaqItem[]>;
 }

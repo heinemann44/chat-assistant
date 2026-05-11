@@ -59,9 +59,10 @@ export async function POST(
     }
 
     const conversationRepo = new DrizzleConversationRepo();
-    const [tone, llmConfig, convo] = await Promise.all([
+    const [tone, llmConfig, faqs, convo] = await Promise.all([
       configRepo.getTone(channel.tenantId),
       configRepo.getLlmConfig(channel.tenantId),
+      configRepo.getActiveFaqs(channel.tenantId),
       conversationRepo.getOrCreate({
         tenantId: channel.tenantId,
         channelInstanceId: channel.id,
@@ -88,6 +89,7 @@ export async function POST(
           tone,
           systemExtras: llmConfig.systemExtras,
           history: convo.recentMessages,
+          faqs,
         },
         { llm },
       );

@@ -1,4 +1,5 @@
 import { classifyIntent } from "./intent/classifier";
+import type { FaqItem } from "./ports/config-repo";
 import type { LLMProvider } from "./ports/llm-provider";
 import { buildSystemPrompt } from "./tone/prompt-builder";
 import type {
@@ -23,6 +24,7 @@ export type PipelineInput = {
   tone: Tone;
   systemExtras?: string | null;
   history?: ConversationMessage[];
+  faqs?: FaqItem[];
 };
 
 export type PipelineResult = {
@@ -34,13 +36,14 @@ export async function processMessage(
   input: PipelineInput,
   deps: PipelineDeps,
 ): Promise<PipelineResult> {
-  const { incoming, tone, systemExtras, history = [] } = input;
+  const { incoming, tone, systemExtras, history = [], faqs } = input;
 
   const intent = classifyIntent(incoming.text);
   const systemPrompt = buildSystemPrompt({
     tone,
     intentHint: INTENT_HINTS[intent],
     systemExtras,
+    faqs,
   });
 
   const messages: ConversationMessage[] = [

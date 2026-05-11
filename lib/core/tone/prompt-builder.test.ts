@@ -38,4 +38,23 @@ describe("buildSystemPrompt", () => {
     // Should still include the base instruction, just no tone block.
     expect(prompt).toMatch(/assistente de atendimento/i);
   });
+
+  it("renders the FAQ block when faqs are provided", () => {
+    const prompt = buildSystemPrompt({
+      tone: { preset: "casual" },
+      faqs: [
+        { id: "1", question: "Qual o horário?", answer: "Seg a sex, 9-18h", keywords: [] },
+        { id: "2", question: "Aceitam Pix?", answer: "Sim, chave CNPJ.", keywords: [] },
+      ],
+    });
+    expect(prompt).toMatch(/base de conhecimento/i);
+    expect(prompt).toContain("Qual o horário?");
+    expect(prompt).toContain("Seg a sex, 9-18h");
+    expect(prompt).toContain("Aceitam Pix?");
+  });
+
+  it("omits the FAQ block when faqs is empty or undefined", () => {
+    const prompt = buildSystemPrompt({ tone: { preset: "casual" }, faqs: [] });
+    expect(prompt).not.toMatch(/base de conhecimento/i);
+  });
 });
