@@ -4,10 +4,17 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { TelegramAdapter } from "@/lib/channels/telegram/adapter";
 import { parseTelegramUpdate } from "@/lib/channels/telegram/parse";
+import { detectHandoffIntent } from "@/lib/core/handoff/detector";
+import {
+  buildOwnerNotification,
+  HANDOFF_USER_ACK,
+} from "@/lib/core/handoff/messages";
+import { dispatchHandoffNotification } from "@/lib/core/handoff/notifier";
 import { processMessage } from "@/lib/core/pipeline";
 import type { ConversationMessage } from "@/lib/core/types";
 import { DrizzleConfigRepo } from "@/lib/db/repos/config-repo";
 import { DrizzleConversationRepo } from "@/lib/db/repos/conversation-repo";
+import { DrizzleHandoffEventsRepo } from "@/lib/db/repos/handoff-events-repo";
 import { getDecryptedSecret } from "@/lib/db/vault";
 import { createLLMProvider } from "@/lib/llm/factory";
 import { logger } from "@/lib/logger";
@@ -59,10 +66,13 @@ export async function POST(
     }
 
     const conversationRepo = new DrizzleConversationRepo();
-    const [tone, llmConfig, faqs, convo] = await Promise.all([
+    const handoffEventsRepo = new DrizzleHandoffEventsRepo();
+
+    const [tone, llmConfig, faqs, handoffConfig, convo] = await Promise.all([
       configRepo.getTone(channel.tenantId),
       configRepo.getLlmConfig(channel.tenantId),
       configRepo.getActiveFaqs(channel.tenantId),
+      configRepo.getHandoffConfig(channel.tenantId),
       conversationRepo.getOrCreate({
         tenantId: channel.tenantId,
         channelInstanceId: channel.id,
@@ -72,8 +82,82 @@ export async function POST(
     ]);
 
     const adapter = new TelegramAdapter(token);
-    const llm = await createLLMProvider(llmConfig);
+    const userMessage: ConversationMessage = {
+      role: "user",
+      text: parsed.incoming.text,
+      at: parsed.incoming.receivedAt.toISOString(),
+    };
 
+    // Lazy auto-resume: if the cron didn't get there yet, do it here so the
+    // current message is processed normally.
+    let state = convo.state;
+    if (state === "handoff_active") {
+      const resumed = await conversationRepo.resumeIfExpired(convo.id);
+      if (resumed) {
+        log.info({ conversation_id: convo.id }, "handoff auto-resumed");
+        state = "active";
+      }
+    }
+
+    // Still in active handoff → bot is muted. Record the user message and bail.
+    if (state === "handoff_active") {
+      await conversationRepo.appendMessages({
+        conversationId: convo.id,
+        messages: [userMessage],
+      });
+      log.info({ conversation_id: convo.id }, "muted: handoff active");
+      return NextResponse.json({ ok: true });
+    }
+
+    // Handoff trigger detection. Keyword-based, configured per tenant.
+    if (detectHandoffIntent(parsed.incoming.text, handoffConfig.triggerKeywords)) {
+      const handoffUntil = new Date(
+        Date.now() + handoffConfig.autoResumeMinutes * 60_000,
+      );
+      await conversationRepo.startHandoff({ conversationId: convo.id, handoffUntil });
+      await handoffEventsRepo.record({
+        conversationId: convo.id,
+        tenantId: channel.tenantId,
+        reason: "trigger keyword matched",
+      });
+
+      const notif = buildOwnerNotification({
+        externalUserName: parsed.incoming.externalUserName ?? null,
+        externalUserId: parsed.incoming.externalUserId,
+        reason: "Cliente solicitou atendimento humano",
+        recentMessages: [...convo.recentMessages, userMessage],
+        channelName: channel.name,
+      });
+      const dispatch = await dispatchHandoffNotification({
+        config: handoffConfig,
+        message: notif,
+        channelAdapter: adapter,
+        payload: {
+          tenantId: channel.tenantId,
+          channelInstanceId: channel.id,
+          conversationId: convo.id,
+          externalUserId: parsed.incoming.externalUserId,
+          externalUserName: parsed.incoming.externalUserName ?? null,
+        },
+      });
+      if (!dispatch.ok) {
+        log.warn({ reason: dispatch.reason }, "handoff notification not delivered");
+      }
+
+      await adapter.sendMessage(parsed.incoming.externalUserId, HANDOFF_USER_ACK);
+      await conversationRepo.appendMessages({
+        conversationId: convo.id,
+        messages: [
+          userMessage,
+          { role: "assistant", text: HANDOFF_USER_ACK, at: new Date().toISOString() },
+        ],
+      });
+
+      log.info({ conversation_id: convo.id }, "handoff triggered");
+      return NextResponse.json({ ok: true });
+    }
+
+    const llm = await createLLMProvider(llmConfig);
     let result;
     try {
       result = await processMessage(
@@ -110,11 +194,7 @@ export async function POST(
 
     const turnNow = new Date().toISOString();
     const appended: ConversationMessage[] = [
-      {
-        role: "user",
-        text: parsed.incoming.text,
-        at: parsed.incoming.receivedAt.toISOString(),
-      },
+      userMessage,
       ...result.replies.map<ConversationMessage>((r) => ({
         role: "assistant",
         text: r.text,

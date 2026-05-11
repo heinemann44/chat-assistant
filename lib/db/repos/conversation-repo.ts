@@ -1,15 +1,16 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull, lte, sql } from "drizzle-orm";
 
 import type {
   AppendMessagesInput,
   ConversationRepo,
   ConversationState,
   GetOrCreateInput,
+  StartHandoffInput,
 } from "@/lib/core/ports/conversation-repo";
 import type { ConversationMessage } from "@/lib/core/types";
 
 import { db } from "../client";
-import { conversations } from "../schema";
+import { conversations, handoffEvents } from "../schema";
 
 const DEFAULT_WINDOW = 20;
 
@@ -56,6 +57,44 @@ export class DrizzleConversationRepo implements ConversationRepo {
       .update(conversations)
       .set({ lastMessages: combined })
       .where(eq(conversations.id, conversationId));
+  }
+
+  async startHandoff({ conversationId, handoffUntil }: StartHandoffInput): Promise<void> {
+    await db
+      .update(conversations)
+      .set({ state: "handoff_active", handoffUntil })
+      .where(eq(conversations.id, conversationId));
+  }
+
+  async resumeIfExpired(conversationId: string): Promise<boolean> {
+    // Atomic: only flip the row if its handoff_until has already passed.
+    const updated = await db
+      .update(conversations)
+      .set({ state: "active", handoffUntil: null })
+      .where(
+        and(
+          eq(conversations.id, conversationId),
+          eq(conversations.state, "handoff_active"),
+          isNotNull(conversations.handoffUntil),
+          lte(conversations.handoffUntil, sql`now()`),
+        ),
+      )
+      .returning({ id: conversations.id });
+
+    if (updated.length === 0) return false;
+
+    // Also resolve the open event so the dashboard reflects auto-resume.
+    await db
+      .update(handoffEvents)
+      .set({ resolvedAt: new Date() })
+      .where(
+        and(
+          eq(handoffEvents.conversationId, conversationId),
+          sql`${handoffEvents.resolvedAt} IS NULL`,
+        ),
+      );
+
+    return true;
   }
 }
 

@@ -24,7 +24,17 @@ export type AppendMessagesInput = {
   windowSize?: number;
 };
 
+export type StartHandoffInput = {
+  conversationId: string;
+  handoffUntil: Date;
+};
+
 export interface ConversationRepo {
   getOrCreate(input: GetOrCreateInput): Promise<ConversationState>;
   appendMessages(input: AppendMessagesInput): Promise<void>;
+  startHandoff(input: StartHandoffInput): Promise<void>;
+  // Resumes the conversation if its handoff_until has already passed. Returns
+  // true when it actually transitioned. Idempotent and safe to call on any
+  // conversation state.
+  resumeIfExpired(conversationId: string): Promise<boolean>;
 }
