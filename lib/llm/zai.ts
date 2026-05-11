@@ -34,6 +34,10 @@ export class ZaiProvider implements LLMProvider {
         maxTokens: this.options.maxTokens,
         temperature: this.options.temperature,
         providerName: `Z.AI (${this.options.plan})`,
+        // GLM thinking models default to enabled, which yields long latency
+        // and frequently leaves content empty (reply lands in reasoning_content).
+        // Disable for a clean OpenAI-style reply.
+        extraBody: { thinking: { type: "disabled" } },
       },
       request,
     );
