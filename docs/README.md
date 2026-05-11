@@ -13,7 +13,7 @@ Cada fase do projeto tem um arquivo aqui, resumindo o que foi feito, por que, e 
 | [Phase 6](./phase-6-llm-real.md) | ✅ | LLM real (Claude/OpenAI/Z.AI), vault pra API key, `/llm` no admin |
 | [Phase 7](./phase-7-faqs.md) | ✅ | FAQs CRUD + injeção no system prompt |
 | [Phase 8](./phase-8-handoff.md) | ✅ | Handoff humano (detector, notifier, pg_cron expirando) |
-| Phase 9 | ⏳ | Polish + deploy de produção |
+| [Phase 9](./phase-9-polish.md) | ✅ | Rate-limit por burst + README completo |
 
 ## Stack final
 

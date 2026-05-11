@@ -11,6 +11,11 @@ import {
 } from "@/lib/core/handoff/messages";
 import { dispatchHandoffNotification } from "@/lib/core/handoff/notifier";
 import { processMessage } from "@/lib/core/pipeline";
+import {
+  lastReplyWasRateLimitWarning,
+  RATE_LIMIT_WARNING,
+  shouldRateLimit,
+} from "@/lib/core/rate-limit/limiter";
 import type { ConversationMessage } from "@/lib/core/types";
 import { DrizzleConfigRepo } from "@/lib/db/repos/config-repo";
 import { DrizzleConversationRepo } from "@/lib/db/repos/conversation-repo";
@@ -154,6 +159,31 @@ export async function POST(
       });
 
       log.info({ conversation_id: convo.id }, "handoff triggered");
+      return NextResponse.json({ ok: true });
+    }
+
+    // Rate limit: 5 user messages in 10s = burst. Warn once per burst,
+    // then silently drop until the burst ends. Handoff already ran above —
+    // legitimate distress isn't blocked by this.
+    if (shouldRateLimit(convo.recentMessages, parsed.incoming.receivedAt)) {
+      const alreadyWarned = lastReplyWasRateLimitWarning(convo.recentMessages);
+      const appended: ConversationMessage[] = [userMessage];
+      if (!alreadyWarned) {
+        await adapter.sendMessage(parsed.incoming.externalUserId, RATE_LIMIT_WARNING);
+        appended.push({
+          role: "assistant",
+          text: RATE_LIMIT_WARNING,
+          at: new Date().toISOString(),
+        });
+      }
+      await conversationRepo.appendMessages({
+        conversationId: convo.id,
+        messages: appended,
+      });
+      log.info(
+        { conversation_id: convo.id, warned: !alreadyWarned },
+        "rate limited",
+      );
       return NextResponse.json({ ok: true });
     }
 
