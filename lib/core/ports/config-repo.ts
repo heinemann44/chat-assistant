@@ -1,7 +1,7 @@
 import type { Tone } from "../types";
 
 export type LlmRuntimeConfig = {
-  provider: "stub" | "anthropic" | "openai";
+  provider: "stub" | "anthropic" | "openai" | "zai";
   model: string | null;
   apiKeySecretId: string | null;
   temperature: number;

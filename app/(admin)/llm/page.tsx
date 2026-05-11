@@ -12,7 +12,7 @@ export default async function LlmPage() {
     .single();
 
   const initial = {
-    provider: (data?.provider ?? "stub") as "stub" | "anthropic" | "openai",
+    provider: (data?.provider ?? "stub") as "stub" | "anthropic" | "openai" | "zai",
     model: data?.model ?? "",
     hasApiKey: !!data?.api_key_secret_id,
     temperature: Number(data?.temperature ?? 0.7),

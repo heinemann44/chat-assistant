@@ -7,7 +7,7 @@ import { logger } from "@/lib/logger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const schema = z.object({
-  provider: z.enum(["stub", "anthropic", "openai"]),
+  provider: z.enum(["stub", "anthropic", "openai", "zai"]),
   model: z.string().max(100).optional().nullable(),
   apiKey: z.string().max(500).optional().nullable(),
   temperature: z.coerce.number().min(0).max(2),

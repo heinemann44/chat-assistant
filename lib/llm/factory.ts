@@ -5,10 +5,12 @@ import { getDecryptedSecret } from "@/lib/db/vault";
 import { AnthropicProvider } from "./anthropic";
 import { OpenAIProvider } from "./openai";
 import { StubProvider } from "./stub";
+import { ZaiProvider } from "./zai";
 
 const DEFAULT_MODELS = {
   anthropic: "claude-sonnet-4-6",
   openai: "gpt-4o-mini",
+  zai: "glm-4.6",
 } as const;
 
 // Resolves an LLMProvider from llm_config. Reads the API key from the vault
@@ -37,5 +39,7 @@ export async function createLLMProvider(config: LlmRuntimeConfig): Promise<LLMPr
       return new AnthropicProvider(opts);
     case "openai":
       return new OpenAIProvider(opts);
+    case "zai":
+      return new ZaiProvider(opts);
   }
 }

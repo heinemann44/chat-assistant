@@ -2,23 +2,23 @@ import type { LLMProvider, LLMRequest } from "@/lib/core/ports/llm-provider";
 
 import { openAICompatibleComplete } from "./openai-compatible";
 
-const ENDPOINT = "https://api.openai.com/v1/chat/completions";
+const ENDPOINT = "https://api.z.ai/api/paas/v4/chat/completions";
 
-export type OpenAIOptions = {
+export type ZaiOptions = {
   apiKey: string;
   model: string;
   maxTokens: number;
   temperature: number;
 };
 
-export class OpenAIProvider implements LLMProvider {
-  readonly name = "openai";
+export class ZaiProvider implements LLMProvider {
+  readonly name = "zai";
 
-  constructor(private readonly options: OpenAIOptions) {}
+  constructor(private readonly options: ZaiOptions) {}
 
   async complete(request: LLMRequest): Promise<string> {
     return openAICompatibleComplete(
-      { ...this.options, endpoint: ENDPOINT, providerName: "OpenAI" },
+      { ...this.options, endpoint: ENDPOINT, providerName: "Z.AI" },
       request,
     );
   }

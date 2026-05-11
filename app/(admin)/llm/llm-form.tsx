@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 
 import { updateLlmConfig, type UpdateLlmState } from "./actions";
 
-type Provider = "stub" | "anthropic" | "openai";
+type Provider = "stub" | "anthropic" | "openai" | "zai";
 
 const initialState: UpdateLlmState = {};
 
@@ -16,6 +16,10 @@ const PROVIDER_DEFAULTS: Record<Exclude<Provider, "stub">, { model: string; hint
   openai: {
     model: "gpt-4o-mini",
     hint: "Chaves começam com sk-… Use uma chave de projeto, não a master.",
+  },
+  zai: {
+    model: "glm-4.6",
+    hint: "Chave gerada em z.ai/manage-apikey. API é OpenAI-compatible.",
   },
 };
 
@@ -41,8 +45,8 @@ export function LlmForm({ initial }: Props) {
     <form action={formAction} className="space-y-6">
       <fieldset className="space-y-3">
         <legend className="text-sm font-medium">Provider</legend>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {(["stub", "anthropic", "openai"] as Provider[]).map((p) => {
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {(["stub", "anthropic", "openai", "zai"] as Provider[]).map((p) => {
             const selected = provider === p;
             return (
               <label
@@ -61,13 +65,17 @@ export function LlmForm({ initial }: Props) {
                   onChange={() => setProvider(p)}
                   className="sr-only"
                 />
-                <div className="text-sm font-medium capitalize">{p}</div>
+                <div className="text-sm font-medium">
+                  {p === "zai" ? "Z.AI" : p.charAt(0).toUpperCase() + p.slice(1)}
+                </div>
                 <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                   {p === "stub"
-                    ? "Respostas determinísticas (sem custo)"
+                    ? "Determinístico (sem custo)"
                     : p === "anthropic"
-                    ? "Claude (Sonnet 4.6 default)"
-                    : "GPT (4o-mini default)"}
+                    ? "Claude (Sonnet 4.6)"
+                    : p === "openai"
+                    ? "GPT (4o-mini)"
+                    : "GLM (4.6)"}
                 </p>
               </label>
             );

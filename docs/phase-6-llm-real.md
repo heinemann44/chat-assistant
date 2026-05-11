@@ -85,3 +85,23 @@ Advisor: 3 warnings esperados (`authenticated_security_definer_function_executab
 ## Commit
 
 A ser feito após este doc.
+
+---
+
+## Follow-up — Z.AI (GLM) como terceiro provider
+
+**Migration aplicada:** `add_zai_provider` (estende check constraint + reescreve `set_llm_config` aceitando `'zai'`).
+
+### Mudanças
+
+- [`lib/llm/openai-compatible.ts`](../lib/llm/openai-compatible.ts) — helper compartilhado pra qualquer endpoint OpenAI-compatible. OpenAI e Z.AI agora são wrappers de 15 linhas cada.
+- [`lib/llm/openai.ts`](../lib/llm/openai.ts) — refatorado pra usar o helper (endpoint `https://api.openai.com/v1/chat/completions`)
+- [`lib/llm/zai.ts`](../lib/llm/zai.ts) — novo, endpoint `https://api.z.ai/api/paas/v4/chat/completions`, default model `glm-4.6`
+- [`lib/llm/factory.ts`](../lib/llm/factory.ts) — case `zai` no switch + default model na map
+- [`lib/db/schema.ts`](../lib/db/schema.ts), [`config-repo.ts`](../lib/core/ports/config-repo.ts), [`llm-form.tsx`](../app/%28admin%29/llm/llm-form.tsx), [`actions.ts`](../app/%28admin%29/llm/actions.ts), [`page.tsx`](../app/%28admin%29/llm/page.tsx) — propagação do enum estendido
+
+### Decisão
+
+- **Helper extraído em vez de OpenAI default + flag** — preserva `name = "openai"` e `name = "zai"` separados nos logs, mas evita duplicar a lógica do payload. Total ~50 linhas reais de código novo pra suportar o terceiro provider.
+- **Grid de provider passou de 3 pra 4 colunas** (`/llm` form) — começa a ficar denso, mas ainda cabe. Acima de 4 talvez vire dropdown.
+- **Sem flag `thinking`** — z.ai expõe `thinking.type: "enabled" | "disabled"` no body, útil pra GLM-4.6 fazer chain-of-thought visível. Não plumbei pra UI nessa fase; default da API é `enabled`. Se quiser desligar pra latência menor, vira um campo no form na Phase 9 (polish).

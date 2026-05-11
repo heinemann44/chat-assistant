@@ -77,7 +77,7 @@ export const llmConfig = pgTable(
     systemExtras: text("system_extras"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [check("llm_config_provider_check", sql`${t.provider} IN ('stub', 'anthropic', 'openai')`)],
+  (t) => [check("llm_config_provider_check", sql`${t.provider} IN ('stub', 'anthropic', 'openai', 'zai')`)],
 );
 
 export const toneConfig = pgTable(
