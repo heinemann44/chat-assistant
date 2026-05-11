@@ -5,10 +5,11 @@ import { useActionState, useState } from "react";
 import { updateLlmConfig, type UpdateLlmState } from "./actions";
 
 type Provider = "stub" | "anthropic" | "openai" | "zai";
+type ZaiPlan = "paas" | "coding";
 
 const initialState: UpdateLlmState = {};
 
-const PROVIDER_DEFAULTS: Record<Exclude<Provider, "stub">, { model: string; hint: string }> = {
+const PROVIDER_DEFAULTS: Record<Exclude<Provider, "stub" | "zai">, { model: string; hint: string }> = {
   anthropic: {
     model: "claude-sonnet-4-6",
     hint: "Chaves começam com sk-ant-…",
@@ -17,9 +18,18 @@ const PROVIDER_DEFAULTS: Record<Exclude<Provider, "stub">, { model: string; hint
     model: "gpt-4o-mini",
     hint: "Chaves começam com sk-… Use uma chave de projeto, não a master.",
   },
-  zai: {
+};
+
+const ZAI_DEFAULTS: Record<ZaiPlan, { model: string; hint: string; description: string }> = {
+  paas: {
     model: "glm-4.6",
-    hint: "Chave gerada em z.ai/manage-apikey. API é OpenAI-compatible.",
+    hint: "Pay-per-use. Requer saldo na conta z.ai.",
+    description: "Endpoint api.z.ai/api/paas/v4. Cobrança por uso.",
+  },
+  coding: {
+    model: "GLM-4.5-air",
+    hint: "GLM Coding Plan. Usa a quota da sua assinatura.",
+    description: "Endpoint api.z.ai/api/coding/paas/v4. Modelos: GLM-5.1, GLM-4.7, GLM-4.5-air.",
   },
 };
 
@@ -31,15 +41,22 @@ type Props = {
     temperature: number;
     maxTokens: number;
     systemExtras: string;
+    zaiPlan: ZaiPlan;
   };
 };
 
 export function LlmForm({ initial }: Props) {
   const [provider, setProvider] = useState<Provider>(initial.provider);
+  const [zaiPlan, setZaiPlan] = useState<ZaiPlan>(initial.zaiPlan);
   const [state, formAction, pending] = useActionState(updateLlmConfig, initialState);
 
   const isStub = provider === "stub";
-  const defaults = isStub ? null : PROVIDER_DEFAULTS[provider];
+  const isZai = provider === "zai";
+  const defaults = isStub
+    ? null
+    : isZai
+    ? { model: ZAI_DEFAULTS[zaiPlan].model, hint: ZAI_DEFAULTS[zaiPlan].hint }
+    : PROVIDER_DEFAULTS[provider as "anthropic" | "openai"];
 
   return (
     <form action={formAction} className="space-y-6">
@@ -82,6 +99,46 @@ export function LlmForm({ initial }: Props) {
           })}
         </div>
       </fieldset>
+
+      {isZai ? (
+        <fieldset className="space-y-3 rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
+          <legend className="px-1 text-xs font-medium uppercase tracking-wide text-neutral-500">
+            Plano Z.AI
+          </legend>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {(["paas", "coding"] as ZaiPlan[]).map((p) => {
+              const selected = zaiPlan === p;
+              return (
+                <label
+                  key={p}
+                  className={`cursor-pointer rounded-md border p-3 transition-colors ${
+                    selected
+                      ? "border-neutral-900 bg-neutral-50 dark:border-neutral-100 dark:bg-neutral-800"
+                      : "border-neutral-200 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-800/50"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="zaiPlan"
+                    value={p}
+                    checked={selected}
+                    onChange={() => setZaiPlan(p)}
+                    className="sr-only"
+                  />
+                  <div className="text-sm font-medium">
+                    {p === "paas" ? "Pay-per-use" : "Coding Plan"}
+                  </div>
+                  <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                    {ZAI_DEFAULTS[p].description}
+                  </p>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+      ) : (
+        <input type="hidden" name="zaiPlan" value={zaiPlan} />
+      )}
 
       {!isStub ? (
         <div className="space-y-4">

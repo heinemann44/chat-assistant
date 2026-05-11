@@ -58,6 +58,7 @@ export class DrizzleConfigRepo implements ConfigRepo {
         temperature: 0.7,
         maxTokens: 1024,
         systemExtras: null,
+        zaiPlan: "paas",
       };
     }
     return {
@@ -67,6 +68,7 @@ export class DrizzleConfigRepo implements ConfigRepo {
       temperature: Number(row.temperature),
       maxTokens: row.maxTokens,
       systemExtras: row.systemExtras,
+      zaiPlan: row.zaiPlan as LlmRuntimeConfig["zaiPlan"],
     };
   }
 

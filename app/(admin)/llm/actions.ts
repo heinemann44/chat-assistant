@@ -13,6 +13,7 @@ const schema = z.object({
   temperature: z.coerce.number().min(0).max(2),
   maxTokens: z.coerce.number().int().min(1).max(8192),
   systemExtras: z.string().max(4000).optional().nullable(),
+  zaiPlan: z.enum(["paas", "coding"]).default("paas"),
 });
 
 export type UpdateLlmState = { error?: string; ok?: boolean };
@@ -28,11 +29,12 @@ export async function updateLlmConfig(
     temperature: formData.get("temperature"),
     maxTokens: formData.get("maxTokens"),
     systemExtras: (formData.get("systemExtras") as string) || null,
+    zaiPlan: (formData.get("zaiPlan") as string) || "paas",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos" };
   }
-  const { provider, model, apiKey, temperature, maxTokens, systemExtras } = parsed.data;
+  const { provider, model, apiKey, temperature, maxTokens, systemExtras, zaiPlan } = parsed.data;
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.rpc("set_llm_config", {
@@ -42,6 +44,7 @@ export async function updateLlmConfig(
     p_temperature: temperature,
     p_max_tokens: maxTokens,
     p_system_extras: systemExtras,
+    p_zai_plan: zaiPlan,
   });
 
   if (error) {

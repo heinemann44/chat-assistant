@@ -7,6 +7,7 @@ export type LlmRuntimeConfig = {
   temperature: number;
   maxTokens: number;
   systemExtras: string | null;
+  zaiPlan: "paas" | "coding";
 };
 
 export type HandoffRuntimeConfig = {

@@ -10,7 +10,8 @@ import { ZaiProvider } from "./zai";
 const DEFAULT_MODELS = {
   anthropic: "claude-sonnet-4-6",
   openai: "gpt-4o-mini",
-  zai: "glm-4.6",
+  zai_paas: "glm-4.6",
+  zai_coding: "GLM-4.5-air",
 } as const;
 
 // Resolves an LLMProvider from llm_config. Reads the API key from the vault
@@ -27,19 +28,32 @@ export async function createLLMProvider(config: LlmRuntimeConfig): Promise<LLMPr
     return new StubProvider();
   }
 
-  const opts = {
-    apiKey,
-    model: config.model ?? DEFAULT_MODELS[config.provider],
-    maxTokens: config.maxTokens,
-    temperature: config.temperature,
-  };
-
   switch (config.provider) {
     case "anthropic":
-      return new AnthropicProvider(opts);
+      return new AnthropicProvider({
+        apiKey,
+        model: config.model ?? DEFAULT_MODELS.anthropic,
+        maxTokens: config.maxTokens,
+        temperature: config.temperature,
+      });
     case "openai":
-      return new OpenAIProvider(opts);
+      return new OpenAIProvider({
+        apiKey,
+        model: config.model ?? DEFAULT_MODELS.openai,
+        maxTokens: config.maxTokens,
+        temperature: config.temperature,
+      });
     case "zai":
-      return new ZaiProvider(opts);
+      return new ZaiProvider({
+        apiKey,
+        model:
+          config.model ??
+          (config.zaiPlan === "coding"
+            ? DEFAULT_MODELS.zai_coding
+            : DEFAULT_MODELS.zai_paas),
+        maxTokens: config.maxTokens,
+        temperature: config.temperature,
+        plan: config.zaiPlan,
+      });
   }
 }

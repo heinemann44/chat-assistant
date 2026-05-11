@@ -2,13 +2,21 @@ import type { LLMProvider, LLMRequest } from "@/lib/core/ports/llm-provider";
 
 import { openAICompatibleComplete } from "./openai-compatible";
 
-const ENDPOINT = "https://api.z.ai/api/paas/v4/chat/completions";
+export type ZaiPlan = "paas" | "coding";
+
+const ENDPOINTS: Record<ZaiPlan, string> = {
+  // Pay-per-use (metered, requires balance).
+  paas: "https://api.z.ai/api/paas/v4/chat/completions",
+  // Subscription (GLM Coding Plan, uses quota from the plan).
+  coding: "https://api.z.ai/api/coding/paas/v4/chat/completions",
+};
 
 export type ZaiOptions = {
   apiKey: string;
   model: string;
   maxTokens: number;
   temperature: number;
+  plan: ZaiPlan;
 };
 
 export class ZaiProvider implements LLMProvider {
@@ -17,8 +25,16 @@ export class ZaiProvider implements LLMProvider {
   constructor(private readonly options: ZaiOptions) {}
 
   async complete(request: LLMRequest): Promise<string> {
+    const endpoint = ENDPOINTS[this.options.plan];
     return openAICompatibleComplete(
-      { ...this.options, endpoint: ENDPOINT, providerName: "Z.AI" },
+      {
+        endpoint,
+        apiKey: this.options.apiKey,
+        model: this.options.model,
+        maxTokens: this.options.maxTokens,
+        temperature: this.options.temperature,
+        providerName: `Z.AI (${this.options.plan})`,
+      },
       request,
     );
   }

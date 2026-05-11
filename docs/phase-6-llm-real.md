@@ -105,3 +105,37 @@ A ser feito após este doc.
 - **Helper extraído em vez de OpenAI default + flag** — preserva `name = "openai"` e `name = "zai"` separados nos logs, mas evita duplicar a lógica do payload. Total ~50 linhas reais de código novo pra suportar o terceiro provider.
 - **Grid de provider passou de 3 pra 4 colunas** (`/llm` form) — começa a ficar denso, mas ainda cabe. Acima de 4 talvez vire dropdown.
 - **Sem flag `thinking`** — z.ai expõe `thinking.type: "enabled" | "disabled"` no body, útil pra GLM-4.6 fazer chain-of-thought visível. Não plumbei pra UI nessa fase; default da API é `enabled`. Se quiser desligar pra latência menor, vira um campo no form na Phase 9 (polish).
+
+---
+
+## Follow-up 2 — Suporte ao GLM Coding Plan
+
+**Migration aplicada:** `add_zai_plan_column` (nova coluna `llm_config.zai_plan` + reescrita do `set_llm_config` com sétimo parâmetro).
+
+### Motivação
+
+Conta z.ai com **GLM Coding Plan** (subscription) usa endpoint diferente do paas pay-per-use:
+
+| Plano | Endpoint |
+|---|---|
+| `paas` (pay-per-use) | `api.z.ai/api/paas/v4/chat/completions` |
+| `coding` (subscription) | `api.z.ai/api/coding/paas/v4/chat/completions` |
+
+Mesmo wire format (OpenAI-compatible), mesma chave de auth — só a URL muda. Sem o switch, chave de Coding Plan responde `429 / code 1113 "Insufficient balance"` no endpoint paas.
+
+### Mudanças
+
+- **Schema**: nova coluna `llm_config.zai_plan TEXT NOT NULL DEFAULT 'paas'` com check `IN ('paas', 'coding')`
+- **RPC `set_llm_config`** ganhou o 7º parâmetro `p_zai_plan` (default `'paas'`); a assinatura antiga foi dropada
+- **`LlmRuntimeConfig.zaiPlan`** + propagação pelo `DrizzleConfigRepo`
+- **`ZaiProvider`** agora aceita `plan: 'paas' | 'coding'` e escolhe a URL via map interno
+- **Factory** seleciona endpoint e **default model** por plano:
+  - paas → `glm-4.6`
+  - coding → `GLM-4.5-air` (GLM-4.6 não é exposto no coding plan)
+- **`/llm` form**: quando provider = z.ai, aparece um sub-fieldset com 2 cards (Pay-per-use / Coding Plan), cada um descrevendo o endpoint. O resto do form (modelo, key, etc.) reage à seleção
+
+### Decisão
+
+- **Coluna nova em vez de derivar do model name** — model names das duas faixas (`glm-4.6` vs `GLM-4.5-air`) são reconhecíveis mas frágeis e surpreendentes. Coluna explícita é honesta.
+- **Default `'paas'`** — bot existente continua funcionando sem mudança. Admin escolhe coding plan explicitamente.
+- **Provider name nos logs vira `Z.AI (paas)` ou `Z.AI (coding)`** — útil pra diagnosticar 429 entre endpoints diferentes.

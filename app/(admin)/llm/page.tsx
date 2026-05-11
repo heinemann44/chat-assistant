@@ -8,7 +8,7 @@ export default async function LlmPage() {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("llm_config")
-    .select("provider, model, api_key_secret_id, temperature, max_tokens, system_extras")
+    .select("provider, model, api_key_secret_id, temperature, max_tokens, system_extras, zai_plan")
     .single();
 
   const initial = {
@@ -18,6 +18,7 @@ export default async function LlmPage() {
     temperature: Number(data?.temperature ?? 0.7),
     maxTokens: Number(data?.max_tokens ?? 1024),
     systemExtras: data?.system_extras ?? "",
+    zaiPlan: (data?.zai_plan ?? "paas") as "paas" | "coding",
   };
 
   return (

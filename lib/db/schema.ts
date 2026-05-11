@@ -75,9 +75,13 @@ export const llmConfig = pgTable(
     temperature: numeric("temperature", { precision: 3, scale: 2 }).notNull().default("0.7"),
     maxTokens: integer("max_tokens").notNull().default(1024),
     systemExtras: text("system_extras"),
+    zaiPlan: text("zai_plan").notNull().default("paas"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [check("llm_config_provider_check", sql`${t.provider} IN ('stub', 'anthropic', 'openai', 'zai')`)],
+  (t) => [
+    check("llm_config_provider_check", sql`${t.provider} IN ('stub', 'anthropic', 'openai', 'zai')`),
+    check("llm_config_zai_plan_check", sql`${t.zaiPlan} IN ('paas', 'coding')`),
+  ],
 );
 
 export const toneConfig = pgTable(
