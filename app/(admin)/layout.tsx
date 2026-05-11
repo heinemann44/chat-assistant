@@ -1,17 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { signOut } from "@/app/login/actions";
+import { AdminNav } from "@/components/admin-nav";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-const navItems = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/channels", label: "Canais" },
-  { href: "/tone", label: "Tom" },
-  { href: "/llm", label: "LLM" },
-  { href: "/faqs", label: "FAQs" },
-  { href: "/handoff", label: "Handoff" },
-];
 
 export default async function AdminLayout({
   children,
@@ -27,43 +17,16 @@ export default async function AdminLayout({
   if (!user) redirect("/login");
 
   return (
-    <div className="flex min-h-screen flex-col bg-neutral-50 dark:bg-neutral-950">
-      <header className="border-b border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-6">
-            <Link href="/dashboard" className="text-sm font-semibold">
-              Chat Assistant
-            </Link>
-            <nav className="flex items-center gap-4 text-sm text-neutral-600 dark:text-neutral-400">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="transition-colors hover:text-neutral-900 dark:hover:text-neutral-100"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="text-neutral-500 dark:text-neutral-400">
-              {user.email}
-            </span>
-            <form action={signOut}>
-              <button
-                type="submit"
-                className="rounded-md border border-neutral-300 px-3 py-1 text-xs font-medium transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
-              >
-                Sair
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-        {children}
-      </main>
+    <div className="min-h-screen bg-surface">
+      <AdminNav userEmail={user.email ?? "—"} />
+      {/* On md+ the sidebar is a fixed 16rem column on the left — push the
+          main content over by the same amount. On mobile the top bar takes
+          its own space in the document flow. */}
+      <div className="md:pl-64">
+        <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

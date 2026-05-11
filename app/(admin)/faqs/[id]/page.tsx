@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -23,18 +24,26 @@ export default async function EditFaqPage({
   if (!faq) notFound();
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-8">
+      <header className="space-y-2">
         <Link
           href="/faqs"
-          className="text-xs text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+          className="inline-flex items-center gap-1 text-xs text-fg-muted transition-colors hover:text-fg"
         >
-          ← Voltar
+          <ArrowLeft className="h-3 w-3" />
+          Voltar
         </Link>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Editar FAQ</h1>
-      </div>
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
+            FAQ
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Editar
+          </h1>
+        </div>
+      </header>
 
-      <section className="rounded-lg border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
+      <section className="rounded-xl border border-border bg-surface-2 p-5 sm:p-6">
         <FaqForm
           mode="edit"
           initial={{

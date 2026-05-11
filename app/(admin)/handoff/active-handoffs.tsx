@@ -1,3 +1,5 @@
+import { Check, UserRound } from "lucide-react";
+
 import { resolveHandoff } from "./actions";
 
 type ActiveHandoff = {
@@ -11,7 +13,7 @@ type ActiveHandoff = {
 export function ActiveHandoffs({ handoffs }: { handoffs: ActiveHandoff[] }) {
   if (handoffs.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-6 text-center text-sm text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+      <div className="rounded-xl border border-dashed border-border bg-surface-2 p-6 text-center text-sm text-fg-muted">
         Nenhum handoff ativo no momento.
       </div>
     );
@@ -22,28 +24,34 @@ export function ActiveHandoffs({ handoffs }: { handoffs: ActiveHandoff[] }) {
       {handoffs.map((h) => (
         <li
           key={h.id}
-          className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900"
+          className="flex flex-col gap-3 rounded-xl border border-border bg-surface-2 p-4 sm:flex-row sm:items-center sm:justify-between"
         >
-          <div className="space-y-1 text-sm">
-            <div className="font-medium">
-              {h.external_user_name ?? h.external_user_id}
-            </div>
-            <div className="text-xs text-neutral-500 dark:text-neutral-400">
-              ID: <span className="font-mono">{h.external_user_id}</span>
-              {h.handoff_until ? (
-                <>
-                  {" · "}
-                  expira em {new Date(h.handoff_until).toLocaleString("pt-BR")}
-                </>
-              ) : null}
+          <div className="flex items-start gap-3">
+            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent">
+              <UserRound className="h-4 w-4" />
+            </span>
+            <div className="space-y-1 text-sm">
+              <div className="font-medium">
+                {h.external_user_name ?? h.external_user_id}
+              </div>
+              <div className="text-xs text-fg-muted">
+                ID: <span className="font-mono">{h.external_user_id}</span>
+                {h.handoff_until ? (
+                  <>
+                    {" · "}
+                    expira em {new Date(h.handoff_until).toLocaleString("pt-BR")}
+                  </>
+                ) : null}
+              </div>
             </div>
           </div>
-          <form action={resolveHandoff}>
+          <form action={resolveHandoff} className="sm:shrink-0">
             <input type="hidden" name="conversationId" value={h.id} />
             <button
               type="submit"
-              className="rounded-md border border-neutral-300 px-3 py-1 text-xs font-medium transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-fg-muted transition-colors hover:bg-surface-3 hover:text-fg"
             >
+              <Check className="h-3.5 w-3.5" />
               Resolver
             </button>
           </form>

@@ -8,7 +8,6 @@ export const dynamic = "force-dynamic";
 export default async function TonePage() {
   const supabase = await createSupabaseServerClient();
 
-  // RLS scopes tone_config to the caller's tenant; .single() returns its one row.
   const { data } = await supabase
     .from("tone_config")
     .select("preset, custom_instructions")
@@ -18,16 +17,22 @@ export default async function TonePage() {
   const initialCustom = data?.custom_instructions ?? "";
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Tom</h1>
-        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-          Define como o bot conversa com seus clientes. Aplicado em todos os
-          canais deste tenant.
+    <div className="space-y-8">
+      <header className="space-y-1.5">
+        <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
+          Tom
         </p>
-      </div>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          Como o bot conversa
+        </h1>
+        <p className="text-sm text-fg-muted">
+          Define a personalidade das respostas. Aplicado em todos os canais deste tenant.
+        </p>
+      </header>
 
-      <ToneForm initialPreset={initialPreset} initialCustom={initialCustom} />
+      <div className="rounded-xl border border-border bg-surface-2 p-5 sm:p-6">
+        <ToneForm initialPreset={initialPreset} initialCustom={initialCustom} />
+      </div>
     </div>
   );
 }

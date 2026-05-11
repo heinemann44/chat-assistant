@@ -31,7 +31,7 @@ export function FaqForm({ mode, initial }: { mode: "create" | "edit"; initial?: 
         <input type="hidden" name="id" value={initial.id} />
       ) : null}
 
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <label htmlFor="question" className="text-sm font-medium">
           Pergunta
         </label>
@@ -42,11 +42,11 @@ export function FaqForm({ mode, initial }: { mode: "create" | "edit"; initial?: 
           defaultValue={initial?.question ?? ""}
           maxLength={500}
           placeholder="Qual o horário de atendimento?"
-          className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950"
+          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-ring"
         />
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <label htmlFor="answer" className="text-sm font-medium">
           Resposta
         </label>
@@ -58,25 +58,25 @@ export function FaqForm({ mode, initial }: { mode: "create" | "edit"; initial?: 
           maxLength={4000}
           defaultValue={initial?.answer ?? ""}
           placeholder="Atendemos de segunda a sexta, das 9h às 18h."
-          className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950"
+          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-ring"
         />
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">
-          O LLM ajusta a frase ao tom configurado em <code>/tone</code>.
+        <p className="text-xs text-fg-muted">
+          O LLM ajusta a frase ao tom configurado em <code className="rounded bg-surface-3 px-1 font-mono text-[11px]">/tone</code>.
         </p>
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <label htmlFor="keywords" className="text-sm font-medium">
-          Palavras-chave (opcional)
+          Palavras-chave <span className="text-xs font-normal text-fg-muted">(opcional)</span>
         </label>
         <input
           id="keywords"
           name="keywords"
           defaultValue={initial?.keywords ?? ""}
           placeholder="horário, expediente, atendimento"
-          className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950"
+          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-ring"
         />
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+        <p className="text-xs text-fg-muted">
           Separadas por vírgula. Reservadas pra um matcher mais rápido em fases futuras.
         </p>
       </div>
@@ -86,26 +86,24 @@ export function FaqForm({ mode, initial }: { mode: "create" | "edit"; initial?: 
           type="checkbox"
           name="enabled"
           defaultChecked={initial?.enabled ?? true}
-          className="h-4 w-4 rounded border-neutral-300"
+          className="h-4 w-4 rounded border-border-strong text-accent focus:ring-ring"
         />
         Ativada
       </label>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
+          className="inline-flex items-center justify-center rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-fg shadow-sm transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {pending ? "Salvando..." : mode === "create" ? "Adicionar" : "Salvar"}
         </button>
         {state.error ? (
-          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-            {state.error}
-          </p>
+          <p className="text-sm text-danger" role="alert">{state.error}</p>
         ) : null}
         {mode === "create" && state.ok ? (
-          <p className="text-sm text-green-700 dark:text-green-400">FAQ adicionada.</p>
+          <p className="text-sm text-success">FAQ adicionada.</p>
         ) : null}
       </div>
     </form>

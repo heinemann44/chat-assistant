@@ -13,17 +13,25 @@ export default async function ChannelsPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Canais</h1>
-        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-          Conecte bots do Telegram (WhatsApp, Slack e Discord virão em outras fases).
+    <div className="space-y-8">
+      <header className="space-y-1.5">
+        <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
+          Canais
         </p>
-      </div>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          Conexões de mensagem
+        </h1>
+        <p className="text-sm text-fg-muted">
+          Conecte bots do Telegram. WhatsApp, Slack e Discord virão em outras fases.
+        </p>
+      </header>
 
       <ChannelForm />
 
-      <ChannelList channels={channels ?? []} />
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium text-fg-muted">Conectados</h2>
+        <ChannelList channels={channels ?? []} />
+      </section>
     </div>
   );
 }

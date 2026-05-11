@@ -1,3 +1,5 @@
+import { Power, Trash2 } from "lucide-react";
+
 import {
   deleteTelegramChannel,
   toggleChannelEnabled,
@@ -21,7 +23,7 @@ type ChannelRow = {
 export function ChannelList({ channels }: { channels: ChannelRow[] }) {
   if (channels.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-8 text-center text-sm text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+      <div className="rounded-xl border border-dashed border-border bg-surface-2 p-8 text-center text-sm text-fg-muted">
         Nenhum canal conectado ainda.
       </div>
     );
@@ -34,51 +36,53 @@ export function ChannelList({ channels }: { channels: ChannelRow[] }) {
         return (
           <li
             key={channel.id}
-            className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900"
+            className="rounded-xl border border-border bg-surface-2 p-4"
           >
-            <div className="space-y-1">
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium">{channel.name}</span>
-                <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs uppercase text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400">
-                  {channel.type}
-                </span>
-                {!channel.enabled ? (
-                  <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-600 dark:bg-red-950 dark:text-red-400">
-                    desativado
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium">{channel.name}</span>
+                  <span className="rounded-full bg-surface-3 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-fg-muted">
+                    {channel.type}
                   </span>
-                ) : null}
+                  {!channel.enabled ? (
+                    <span className="rounded-full bg-danger-soft px-2 py-0.5 text-xs text-danger">
+                      desativado
+                    </span>
+                  ) : null}
+                </div>
+                <div className="text-xs text-fg-muted">
+                  {username ? `@${username} · ` : ""}
+                  criado em {new Date(channel.created_at).toLocaleString("pt-BR")}
+                </div>
+                <div className="truncate font-mono text-xs text-fg-subtle">{channel.id}</div>
               </div>
-              <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                {username ? `@${username} · ` : ""}
-                criado em {new Date(channel.created_at).toLocaleString("pt-BR")}
-              </div>
-              <div className="font-mono text-xs text-neutral-400">{channel.id}</div>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <form action={toggleChannelEnabled}>
-                <input type="hidden" name="id" value={channel.id} />
-                <input
-                  type="hidden"
-                  name="enabled"
-                  value={(!channel.enabled).toString()}
-                />
-                <button
-                  type="submit"
-                  className="rounded-md border border-neutral-300 px-3 py-1 text-xs font-medium transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
-                >
-                  {channel.enabled ? "Desativar" : "Ativar"}
-                </button>
-              </form>
-              <form action={deleteTelegramChannel}>
-                <input type="hidden" name="id" value={channel.id} />
-                <button
-                  type="submit"
-                  className="rounded-md border border-red-300 px-3 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
-                >
-                  Excluir
-                </button>
-              </form>
+              <div className="flex shrink-0 items-center gap-2">
+                <form action={toggleChannelEnabled}>
+                  <input type="hidden" name="id" value={channel.id} />
+                  <input type="hidden" name="enabled" value={(!channel.enabled).toString()} />
+                  <button
+                    type="submit"
+                    title={channel.enabled ? "Desativar" : "Ativar"}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-fg-muted transition-colors hover:bg-surface-3 hover:text-fg"
+                  >
+                    <Power className="h-3.5 w-3.5" />
+                    {channel.enabled ? "Desativar" : "Ativar"}
+                  </button>
+                </form>
+                <form action={deleteTelegramChannel}>
+                  <input type="hidden" name="id" value={channel.id} />
+                  <button
+                    type="submit"
+                    title="Excluir"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-danger/30 bg-surface px-3 py-1.5 text-xs font-medium text-danger transition-colors hover:bg-danger-soft"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Excluir
+                  </button>
+                </form>
+              </div>
             </div>
           </li>
         );

@@ -33,6 +33,13 @@ const ZAI_DEFAULTS: Record<ZaiPlan, { model: string; hint: string; description: 
   },
 };
 
+const PROVIDER_CARDS: Array<{ value: Provider; label: string; description: string }> = [
+  { value: "stub", label: "Stub", description: "Determinístico (sem custo)" },
+  { value: "anthropic", label: "Anthropic", description: "Claude (Sonnet 4.6)" },
+  { value: "openai", label: "OpenAI", description: "GPT (4o-mini)" },
+  { value: "zai", label: "Z.AI", description: "GLM (4.6)" },
+];
+
 type Props = {
   initial: {
     provider: Provider;
@@ -63,37 +70,29 @@ export function LlmForm({ initial }: Props) {
       <fieldset className="space-y-3">
         <legend className="text-sm font-medium">Provider</legend>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {(["stub", "anthropic", "openai", "zai"] as Provider[]).map((p) => {
-            const selected = provider === p;
+          {PROVIDER_CARDS.map((p) => {
+            const selected = provider === p.value;
             return (
               <label
-                key={p}
+                key={p.value}
                 className={`cursor-pointer rounded-lg border p-3 text-center transition-colors ${
                   selected
-                    ? "border-neutral-900 bg-neutral-50 dark:border-neutral-100 dark:bg-neutral-800"
-                    : "border-neutral-200 bg-white hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900"
+                    ? "border-accent bg-accent-soft"
+                    : "border-border bg-surface hover:bg-surface-3"
                 }`}
               >
                 <input
                   type="radio"
                   name="provider"
-                  value={p}
+                  value={p.value}
                   checked={selected}
-                  onChange={() => setProvider(p)}
+                  onChange={() => setProvider(p.value)}
                   className="sr-only"
                 />
-                <div className="text-sm font-medium">
-                  {p === "zai" ? "Z.AI" : p.charAt(0).toUpperCase() + p.slice(1)}
+                <div className={`text-sm font-medium ${selected ? "text-accent" : ""}`}>
+                  {p.label}
                 </div>
-                <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                  {p === "stub"
-                    ? "Determinístico (sem custo)"
-                    : p === "anthropic"
-                    ? "Claude (Sonnet 4.6)"
-                    : p === "openai"
-                    ? "GPT (4o-mini)"
-                    : "GLM (4.6)"}
-                </p>
+                <p className="mt-1 text-xs text-fg-muted">{p.description}</p>
               </label>
             );
           })}
@@ -101,8 +100,8 @@ export function LlmForm({ initial }: Props) {
       </fieldset>
 
       {isZai ? (
-        <fieldset className="space-y-3 rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
-          <legend className="px-1 text-xs font-medium uppercase tracking-wide text-neutral-500">
+        <fieldset className="space-y-3 rounded-lg border border-border bg-surface p-4">
+          <legend className="px-1 text-xs font-medium uppercase tracking-wide text-fg-muted">
             Plano Z.AI
           </legend>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -113,8 +112,8 @@ export function LlmForm({ initial }: Props) {
                   key={p}
                   className={`cursor-pointer rounded-md border p-3 transition-colors ${
                     selected
-                      ? "border-neutral-900 bg-neutral-50 dark:border-neutral-100 dark:bg-neutral-800"
-                      : "border-neutral-200 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-800/50"
+                      ? "border-accent bg-accent-soft"
+                      : "border-border hover:bg-surface-3"
                   }`}
                 >
                   <input
@@ -125,12 +124,10 @@ export function LlmForm({ initial }: Props) {
                     onChange={() => setZaiPlan(p)}
                     className="sr-only"
                   />
-                  <div className="text-sm font-medium">
+                  <div className={`text-sm font-medium ${selected ? "text-accent" : ""}`}>
                     {p === "paas" ? "Pay-per-use" : "Coding Plan"}
                   </div>
-                  <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                    {ZAI_DEFAULTS[p].description}
-                  </p>
+                  <p className="mt-1 text-xs text-fg-muted">{ZAI_DEFAULTS[p].description}</p>
                 </label>
               );
             })}
@@ -142,7 +139,7 @@ export function LlmForm({ initial }: Props) {
 
       {!isStub ? (
         <div className="space-y-4">
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <label htmlFor="model" className="text-sm font-medium">
               Modelo
             </label>
@@ -151,13 +148,18 @@ export function LlmForm({ initial }: Props) {
               name="model"
               defaultValue={initial.model || defaults?.model}
               placeholder={defaults?.model}
-              className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 font-mono text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950"
+              className="w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-ring"
             />
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <label htmlFor="apiKey" className="text-sm font-medium">
-              API key {initial.hasApiKey ? "(deixe em branco pra manter)" : ""}
+              API key{" "}
+              {initial.hasApiKey ? (
+                <span className="text-xs font-normal text-fg-muted">
+                  (deixe em branco pra manter)
+                </span>
+              ) : null}
             </label>
             <input
               id="apiKey"
@@ -165,15 +167,15 @@ export function LlmForm({ initial }: Props) {
               type="password"
               autoComplete="off"
               placeholder={initial.hasApiKey ? "••••••••••••••••" : defaults?.hint}
-              className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 font-mono text-xs outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950"
+              className="w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-xs outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-ring"
             />
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">{defaults?.hint}</p>
+            <p className="text-xs text-fg-muted">{defaults?.hint}</p>
           </div>
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
           <label htmlFor="temperature" className="text-sm font-medium">
             Temperatura
           </label>
@@ -185,13 +187,13 @@ export function LlmForm({ initial }: Props) {
             min="0"
             max="2"
             defaultValue={initial.temperature}
-            className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950"
+            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-ring"
           />
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">
+          <p className="text-xs text-fg-muted">
             0 = determinístico, 1 = padrão, 2 = bem criativo.
           </p>
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <label htmlFor="maxTokens" className="text-sm font-medium">
             Max tokens
           </label>
@@ -202,15 +204,15 @@ export function LlmForm({ initial }: Props) {
             min="1"
             max="8192"
             defaultValue={initial.maxTokens}
-            className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950"
+            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-ring"
           />
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">
+          <p className="text-xs text-fg-muted">
             Limite de tokens da resposta. 1024 é um bom default.
           </p>
         </div>
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <label htmlFor="systemExtras" className="text-sm font-medium">
           Instruções extras de system
         </label>
@@ -221,29 +223,25 @@ export function LlmForm({ initial }: Props) {
           maxLength={4000}
           defaultValue={initial.systemExtras}
           placeholder="Ex.: Nunca mencione preços; sempre redirecione perguntas comerciais para vendas@empresa.com."
-          className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950"
+          className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-ring"
         />
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+        <p className="text-xs text-fg-muted">
           Anexado ao system prompt depois do tom. Bom pra políticas globais.
         </p>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
+          className="inline-flex items-center justify-center rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-fg shadow-sm transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {pending ? "Salvando..." : "Salvar"}
         </button>
         {state.error ? (
-          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-            {state.error}
-          </p>
+          <p className="text-sm text-danger" role="alert">{state.error}</p>
         ) : null}
-        {state.ok ? (
-          <p className="text-sm text-green-700 dark:text-green-400">Salvo.</p>
-        ) : null}
+        {state.ok ? <p className="text-sm text-success">Salvo.</p> : null}
       </div>
     </form>
   );

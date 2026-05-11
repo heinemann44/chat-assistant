@@ -22,15 +22,23 @@ export default async function LlmPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">LLM</h1>
-        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-          Escolha o provider, modelo e parâmetros. A API key é guardada no
-          Supabase Vault — só sai do banco em código privilegiado.
+    <div className="space-y-8">
+      <header className="space-y-1.5">
+        <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">
+          LLM
         </p>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          Provider de IA
+        </h1>
+        <p className="text-sm text-fg-muted">
+          Escolha o provider, modelo e parâmetros. A API key é guardada no Supabase Vault
+          — só sai do banco em código privilegiado.
+        </p>
+      </header>
+
+      <div className="rounded-xl border border-border bg-surface-2 p-5 sm:p-6">
+        <LlmForm initial={initial} />
       </div>
-      <LlmForm initial={initial} />
     </div>
   );
 }

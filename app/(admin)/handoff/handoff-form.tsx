@@ -48,8 +48,8 @@ export function HandoffForm({ initial }: Props) {
                 key={c}
                 className={`cursor-pointer rounded-lg border p-3 transition-colors ${
                   selected
-                    ? "border-neutral-900 bg-neutral-50 dark:border-neutral-100 dark:bg-neutral-800"
-                    : "border-neutral-200 bg-white hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900"
+                    ? "border-accent bg-accent-soft"
+                    : "border-border bg-surface hover:bg-surface-3"
                 }`}
               >
                 <input
@@ -60,20 +60,20 @@ export function HandoffForm({ initial }: Props) {
                   onChange={() => setChannel(c)}
                   className="sr-only"
                 />
-                <div className="text-sm font-medium">{CHANNEL_HINTS[c].label}</div>
-                <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                  {CHANNEL_HINTS[c].help}
-                </p>
+                <div className={`text-sm font-medium ${selected ? "text-accent" : ""}`}>
+                  {CHANNEL_HINTS[c].label}
+                </div>
+                <p className="mt-1 text-xs text-fg-muted">{CHANNEL_HINTS[c].help}</p>
               </label>
             );
           })}
         </div>
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">
+        <p className="text-xs text-fg-muted">
           E-mail não está disponível enquanto o projeto roda no plano free do Supabase.
         </p>
       </fieldset>
 
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         <label htmlFor="notifyTarget" className="text-sm font-medium">
           {channel === "telegram" ? "Chat ID do dono" : "URL do webhook"}
         </label>
@@ -83,12 +83,12 @@ export function HandoffForm({ initial }: Props) {
           required
           defaultValue={initial.notifyTarget}
           placeholder={hint.placeholder}
-          className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 font-mono text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950"
+          className="w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-ring"
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <label htmlFor="autoResumeMinutes" className="text-sm font-medium">
             Auto-resume (minutos)
           </label>
@@ -100,13 +100,13 @@ export function HandoffForm({ initial }: Props) {
             max="1440"
             required
             defaultValue={initial.autoResumeMinutes}
-            className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950"
+            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-ring"
           />
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">
+          <p className="text-xs text-fg-muted">
             Depois desse tempo o bot volta a responder na mesma conversa.
           </p>
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <label htmlFor="triggerKeywords" className="text-sm font-medium">
             Palavras-gatilho
           </label>
@@ -115,30 +115,26 @@ export function HandoffForm({ initial }: Props) {
             name="triggerKeywords"
             defaultValue={initial.triggerKeywords}
             placeholder="atendente, humano, pessoa, falar com"
-            className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-900 dark:border-neutral-700 dark:bg-neutral-950"
+            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-ring"
           />
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">
+          <p className="text-xs text-fg-muted">
             Separadas por vírgula. Match por substring (case-insensitive).
           </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
+          className="inline-flex items-center justify-center rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-fg shadow-sm transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {pending ? "Salvando..." : "Salvar"}
         </button>
         {state.error ? (
-          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-            {state.error}
-          </p>
+          <p className="text-sm text-danger" role="alert">{state.error}</p>
         ) : null}
-        {state.ok ? (
-          <p className="text-sm text-green-700 dark:text-green-400">Salvo.</p>
-        ) : null}
+        {state.ok ? <p className="text-sm text-success">Salvo.</p> : null}
       </div>
     </form>
   );
