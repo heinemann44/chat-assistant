@@ -55,4 +55,19 @@ describe("parseTelegramUpdate", () => {
     const result = parseTelegramUpdate({ garbage: true });
     expect(result.kind).toBe("ignored");
   });
+
+  it("truncates user text longer than 2000 chars", () => {
+    const longText = "a".repeat(3500);
+    const result = parseTelegramUpdate({
+      update_id: 1,
+      message: {
+        message_id: 1,
+        date: 1,
+        text: longText,
+        chat: { id: 1 },
+      },
+    });
+    if (result.kind !== "message") throw new Error("expected message");
+    expect(result.incoming.text.length).toBe(2000);
+  });
 });

@@ -14,13 +14,26 @@ export class TelegramApiError extends Error {
 type TelegramResult<T> = { ok: true; result: T } | { ok: false; description: string; error_code?: number };
 
 async function call<T>(token: string, method: string, body: Record<string, unknown>): Promise<T> {
-  const res = await fetch(`${API_BASE}/bot${token}/${method}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
-  const json = (await res.json()) as TelegramResult<T>;
+  // The URL embeds the bot token; native fetch errors (DNS, TLS, timeout)
+  // often include the full URL in the message/stack. We catch and rethrow
+  // with a stripped description so logs never carry the secret.
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/bot${token}/${method}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+  } catch {
+    throw new TelegramApiError(method, "network error");
+  }
+  let json: TelegramResult<T>;
+  try {
+    json = (await res.json()) as TelegramResult<T>;
+  } catch {
+    throw new TelegramApiError(method, `invalid response (status ${res.status})`);
+  }
   if (!json.ok) {
     throw new TelegramApiError(method, json.description, json.error_code);
   }

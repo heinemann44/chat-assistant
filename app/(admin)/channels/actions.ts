@@ -11,7 +11,7 @@ import {
 } from "@/lib/channels/telegram/api";
 import { getDecryptedSecret } from "@/lib/db/vault";
 import { logger } from "@/lib/logger";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireUser, UnauthorizedError } from "@/lib/supabase/server";
 
 const createSchema = z.object({
   name: z.string().min(1, "Nome obrigatório").max(80),
@@ -49,7 +49,13 @@ export async function createTelegramChannel(
     return { error: "Token rejeitado pelo Telegram (getMe falhou)" };
   }
 
-  const supabase = await createSupabaseServerClient();
+  let supabase;
+  try {
+    ({ supabase } = await requireUser());
+  } catch (err) {
+    if (err instanceof UnauthorizedError) return { error: "Sessão expirada" };
+    throw err;
+  }
   const { data: rpcRows, error: rpcError } = await supabase
     .rpc("create_telegram_channel", {
       p_name: name,
@@ -96,7 +102,7 @@ export async function deleteTelegramChannel(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
-  const supabase = await createSupabaseServerClient();
+  const { supabase } = await requireUser();
   // RLS gate: ensures the channel belongs to the caller's tenant.
   const { data: channel } = await supabase
     .from("channel_instances")
@@ -130,7 +136,7 @@ export async function toggleChannelEnabled(formData: FormData): Promise<void> {
   if (!id) return;
 
   // RLS scopes this update to the caller's tenant.
-  const supabase = await createSupabaseServerClient();
+  const { supabase } = await requireUser();
   await supabase.from("channel_instances").update({ enabled }).eq("id", id);
 
   revalidatePath("/channels");

@@ -4,14 +4,46 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { logger } from "@/lib/logger";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireUser, UnauthorizedError } from "@/lib/supabase/server";
 
-const configSchema = z.object({
-  notifyChannel: z.enum(["telegram", "webhook"]),
-  notifyTarget: z.string().trim().min(1, "Destino obrigatório").max(500),
-  autoResumeMinutes: z.coerce.number().int().min(1).max(1440),
-  triggerKeywords: z.string().max(1000).optional().nullable(),
-});
+const configSchema = z
+  .object({
+    notifyChannel: z.enum(["telegram", "webhook"]),
+    notifyTarget: z.string().trim().min(1, "Destino obrigatório").max(500),
+    autoResumeMinutes: z.coerce.number().int().min(1).max(1440),
+    triggerKeywords: z.string().max(1000).optional().nullable(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.notifyChannel === "telegram") {
+      if (!/^-?\d+$/.test(val.notifyTarget)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["notifyTarget"],
+          message: "Para Telegram, informe o chat_id numérico",
+        });
+      }
+      return;
+    }
+    // webhook: must be a parseable https URL
+    let url: URL;
+    try {
+      url = new URL(val.notifyTarget);
+    } catch {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["notifyTarget"],
+        message: "URL inválida",
+      });
+      return;
+    }
+    if (url.protocol !== "https:") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["notifyTarget"],
+        message: "URL deve usar https://",
+      });
+    }
+  });
 
 export type UpdateHandoffState = { error?: string; ok?: boolean };
 
@@ -34,7 +66,13 @@ export async function updateHandoffConfig(
     .map((k) => k.trim())
     .filter(Boolean);
 
-  const supabase = await createSupabaseServerClient();
+  let supabase;
+  try {
+    ({ supabase } = await requireUser());
+  } catch (err) {
+    if (err instanceof UnauthorizedError) return { error: "Sessão expirada" };
+    throw err;
+  }
   const { data: link } = await supabase
     .from("admin_users")
     .select("tenant_id")
@@ -63,8 +101,7 @@ export async function resolveHandoff(formData: FormData): Promise<void> {
   const conversationId = String(formData.get("conversationId") ?? "");
   if (!conversationId) return;
 
-  const supabase = await createSupabaseServerClient();
-  const { data: user } = await supabase.auth.getUser();
+  const { supabase, user } = await requireUser();
 
   await supabase
     .from("conversations")
@@ -73,7 +110,7 @@ export async function resolveHandoff(formData: FormData): Promise<void> {
 
   await supabase
     .from("handoff_events")
-    .update({ resolved_at: new Date().toISOString(), resolved_by: user.user?.id ?? null })
+    .update({ resolved_at: new Date().toISOString(), resolved_by: user.id })
     .eq("conversation_id", conversationId)
     .is("resolved_at", null);
 

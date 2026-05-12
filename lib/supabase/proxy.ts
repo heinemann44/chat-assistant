@@ -1,12 +1,21 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// API routes that handle their own auth (webhooks via secret, cron via
+// CRON_SECRET). Anything under /api/* NOT in this list will be treated as a
+// regular protected route — add new public endpoints here explicitly.
+const PUBLIC_API_PREFIXES = ["/api/channels/"];
+
+function isPublicApi(pathname: string): boolean {
+  return PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
 // Refreshes the Supabase session on every request and enforces auth.
 // Returns either the original NextResponse (allow) or a redirect.
 export async function updateSession(request: NextRequest) {
-  // API routes (webhooks, cron) handle their own auth and shouldn't pay the
-  // cost of a Supabase Auth roundtrip on every request.
-  if (request.nextUrl.pathname.startsWith("/api/")) {
+  // Public API routes (webhooks, cron) handle their own auth and shouldn't
+  // pay the cost of a Supabase Auth roundtrip on every request.
+  if (isPublicApi(request.nextUrl.pathname)) {
     return NextResponse.next({ request });
   }
 
@@ -40,7 +49,10 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isPublicRoute = pathname === "/login" || pathname.startsWith("/api/");
+  // /api/* is already short-circuited above when public; here we only allow
+  // /login through unauthenticated. Anything else (incl. unknown /api/*
+  // routes) requires a session.
+  const isPublicRoute = pathname === "/login";
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();

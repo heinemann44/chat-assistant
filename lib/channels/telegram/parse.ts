@@ -30,6 +30,10 @@ export type ParsedUpdate =
   | { kind: "message"; incoming: Omit<IncomingMessage, "channel" | "channelInstanceId"> }
   | { kind: "ignored"; reason: string };
 
+// Telegram allows up to ~4096 chars per message. We cap before the LLM to
+// contain cost-burn and prompt-injection surface.
+const MAX_USER_TEXT_CHARS = 2000;
+
 export function parseTelegramUpdate(raw: unknown): ParsedUpdate {
   const parsed = updateSchema.safeParse(raw);
   if (!parsed.success) {
@@ -49,12 +53,17 @@ export function parseTelegramUpdate(raw: unknown): ParsedUpdate {
       null
     : null;
 
+  const text =
+    msg.text.length > MAX_USER_TEXT_CHARS
+      ? msg.text.slice(0, MAX_USER_TEXT_CHARS)
+      : msg.text;
+
   return {
     kind: "message",
     incoming: {
       externalUserId,
       externalUserName: externalUserName ?? undefined,
-      text: msg.text,
+      text,
       receivedAt: new Date(msg.date * 1000),
     },
   };

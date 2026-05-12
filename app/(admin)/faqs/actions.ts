@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { logger } from "@/lib/logger";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireUser, UnauthorizedError } from "@/lib/supabase/server";
 
 const baseSchema = z.object({
   question: z.string().trim().min(2, "Pergunta obrigatória").max(500),
@@ -34,7 +34,7 @@ function parseEnabled(raw: string | null | undefined): boolean {
 export type FaqFormState = { error?: string; ok?: boolean };
 
 async function getTenantId() {
-  const supabase = await createSupabaseServerClient();
+  const { supabase } = await requireUser();
   const { data } = await supabase.from("admin_users").select("tenant_id").single();
   return { supabase, tenantId: data?.tenant_id ?? null };
 }
@@ -61,7 +61,7 @@ export async function createFaq(
     question: parsed.data.question,
     answer: parsed.data.answer,
     keywords: parseKeywords(parsed.data.keywords),
-    enabled: parseEnabled(parsed.data.enabled) || true,
+    enabled: parseEnabled(parsed.data.enabled),
   });
   if (error) {
     logger.error({ error }, "createFaq insert failed");
@@ -89,7 +89,13 @@ export async function updateFaq(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos" };
   }
 
-  const supabase = await createSupabaseServerClient();
+  let supabase;
+  try {
+    ({ supabase } = await requireUser());
+  } catch (err) {
+    if (err instanceof UnauthorizedError) return { error: "Sessão expirada" };
+    throw err;
+  }
   const { error } = await supabase
     .from("faqs")
     .update({
@@ -111,7 +117,7 @@ export async function updateFaq(
 export async function deleteFaq(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
-  const supabase = await createSupabaseServerClient();
+  const { supabase } = await requireUser();
   await supabase.from("faqs").delete().eq("id", id);
   revalidatePath("/faqs");
 }
@@ -120,7 +126,7 @@ export async function toggleFaqEnabled(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   const enabled = formData.get("enabled") === "true";
   if (!id) return;
-  const supabase = await createSupabaseServerClient();
+  const { supabase } = await requireUser();
   await supabase.from("faqs").update({ enabled }).eq("id", id);
   revalidatePath("/faqs");
 }

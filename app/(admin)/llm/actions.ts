@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { logger } from "@/lib/logger";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireUser, UnauthorizedError } from "@/lib/supabase/server";
 
 const schema = z.object({
   provider: z.enum(["stub", "anthropic", "openai", "zai"]),
@@ -36,7 +36,13 @@ export async function updateLlmConfig(
   }
   const { provider, model, apiKey, temperature, maxTokens, systemExtras, zaiPlan } = parsed.data;
 
-  const supabase = await createSupabaseServerClient();
+  let supabase;
+  try {
+    ({ supabase } = await requireUser());
+  } catch (err) {
+    if (err instanceof UnauthorizedError) return { error: "Sessão expirada" };
+    throw err;
+  }
   const { error } = await supabase.rpc("set_llm_config", {
     p_provider: provider,
     p_model: model,
@@ -49,7 +55,7 @@ export async function updateLlmConfig(
 
   if (error) {
     logger.error({ error }, "set_llm_config rpc failed");
-    return { error: error.message };
+    return { error: "Falha ao salvar" };
   }
 
   revalidatePath("/llm");

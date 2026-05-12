@@ -14,6 +14,7 @@ Cada fase do projeto tem um arquivo aqui, resumindo o que foi feito, por que, e 
 | [Phase 7](./phase-7-faqs.md) | ✅ | FAQs CRUD + injeção no system prompt |
 | [Phase 8](./phase-8-handoff.md) | ✅ | Handoff humano (detector, notifier, pg_cron expirando) |
 | [Phase 9](./phase-9-polish.md) | ✅ | Rate-limit por burst + README completo |
+| [Phase 10](./phase-10-security-hardening.md) | ✅ | Hardening (SSRF guard, redact, REVOKE DML, requireUser, allowlist proxy) |
 
 ## Stack final
 

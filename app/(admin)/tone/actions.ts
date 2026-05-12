@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { logger } from "@/lib/logger";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireUser, UnauthorizedError } from "@/lib/supabase/server";
 
 const schema = z
   .object({
@@ -39,7 +39,13 @@ export async function updateTone(
     return { error: parsed.error.issues[0]?.message ?? "Dados inválidos" };
   }
 
-  const supabase = await createSupabaseServerClient();
+  let supabase;
+  try {
+    ({ supabase } = await requireUser());
+  } catch (err) {
+    if (err instanceof UnauthorizedError) return { error: "Sessão expirada" };
+    throw err;
+  }
 
   // RLS on admin_users limits this to the caller's own row.
   const { data: link } = await supabase
