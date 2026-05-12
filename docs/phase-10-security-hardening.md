@@ -64,4 +64,4 @@
 
 ## Commit
 
-(a preencher após o commit)
+`b2dc9cf` — Phase 10: security hardening from review
