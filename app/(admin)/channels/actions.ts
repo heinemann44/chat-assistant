@@ -141,3 +141,54 @@ export async function toggleChannelEnabled(formData: FormData): Promise<void> {
 
   revalidatePath("/channels");
 }
+
+export type ReregisterWebhookState = { error?: string; ok?: boolean; id?: string };
+
+export async function reregisterTelegramWebhook(
+  _prev: ReregisterWebhookState,
+  formData: FormData,
+): Promise<ReregisterWebhookState> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "id ausente" };
+
+  const appUrl = process.env.APP_URL;
+  if (!appUrl) return { error: "APP_URL não configurado", id };
+
+  let supabase;
+  try {
+    ({ supabase } = await requireUser());
+  } catch (err) {
+    if (err instanceof UnauthorizedError) return { error: "Sessão expirada", id };
+    throw err;
+  }
+
+  // RLS gate: only returns rows belonging to the caller's tenant.
+  const { data: channel } = await supabase
+    .from("channel_instances")
+    .select("id, type, bot_token_secret_id, webhook_secret")
+    .eq("id", id)
+    .single();
+  if (!channel || channel.type !== "telegram" || !channel.bot_token_secret_id) {
+    return { error: "Canal Telegram não encontrado", id };
+  }
+
+  const token = await getDecryptedSecret(channel.bot_token_secret_id);
+  if (!token) return { error: "Token do bot não disponível", id };
+
+  const webhookUrl = `${appUrl.replace(/\/+$/, "")}/api/channels/telegram/webhook/${id}`;
+  try {
+    await setWebhook(token, webhookUrl, channel.webhook_secret);
+  } catch (err) {
+    logger.error({ err, webhookUrl }, "telegram setWebhook re-register failed");
+    return {
+      error:
+        err instanceof TelegramApiError
+          ? `setWebhook falhou: ${err.description}`
+          : "setWebhook falhou",
+      id,
+    };
+  }
+
+  revalidatePath("/channels");
+  return { ok: true, id };
+}

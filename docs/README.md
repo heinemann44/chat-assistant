@@ -15,6 +15,7 @@ Cada fase do projeto tem um arquivo aqui, resumindo o que foi feito, por que, e 
 | [Phase 8](./phase-8-handoff.md) | ✅ | Handoff humano (detector, notifier, pg_cron expirando) |
 | [Phase 9](./phase-9-polish.md) | ✅ | Rate-limit por burst + README completo |
 | [Phase 10](./phase-10-security-hardening.md) | ✅ | Hardening (SSRF guard, redact, REVOKE DML, requireUser, allowlist proxy) |
+| [Phase 11](./phase-11-telegram-business.md) | ✅ | Telegram Business — bot responde mensagens enviadas pro número pessoal do dono |
 
 ## Stack final
 

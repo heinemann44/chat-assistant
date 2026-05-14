@@ -7,10 +7,18 @@ export const dynamic = "force-dynamic";
 
 export default async function ChannelsPage() {
   const supabase = await createSupabaseServerClient();
-  const { data: channels } = await supabase
-    .from("channel_instances")
-    .select("id, type, name, enabled, created_at, config")
-    .order("created_at", { ascending: false });
+  const [{ data: channels }, { data: businessConnections }] = await Promise.all([
+    supabase
+      .from("channel_instances")
+      .select("id, type, name, enabled, created_at, config")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("telegram_business_connections")
+      .select(
+        "id, channel_instance_id, business_connection_id, owner_username, owner_first_name, owner_last_name, can_reply, can_read, is_enabled, connected_at, disconnected_at",
+      )
+      .order("connected_at", { ascending: false }),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -30,7 +38,10 @@ export default async function ChannelsPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-fg-muted">Conectados</h2>
-        <ChannelList channels={channels ?? []} />
+        <ChannelList
+          channels={channels ?? []}
+          businessConnections={businessConnections ?? []}
+        />
       </section>
     </div>
   );

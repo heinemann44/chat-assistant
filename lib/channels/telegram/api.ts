@@ -51,15 +51,28 @@ export async function getMe(token: string): Promise<BotInfo> {
   return { id: r.id, username: r.username, firstName: r.first_name };
 }
 
-export async function sendMessage(token: string, chatId: string | number, text: string): Promise<void> {
-  await call(token, "sendMessage", { chat_id: chatId, text });
+export type SendMessageOptions = {
+  businessConnectionId?: string;
+};
+
+export async function sendMessage(
+  token: string,
+  chatId: string | number,
+  text: string,
+  opts: SendMessageOptions = {},
+): Promise<void> {
+  const body: Record<string, unknown> = { chat_id: chatId, text };
+  if (opts.businessConnectionId) {
+    body.business_connection_id = opts.businessConnectionId;
+  }
+  await call(token, "sendMessage", body);
 }
 
 export async function setWebhook(token: string, url: string, secretToken: string): Promise<void> {
   await call(token, "setWebhook", {
     url,
     secret_token: secretToken,
-    allowed_updates: ["message"],
+    allowed_updates: ["message", "business_connection", "business_message"],
     drop_pending_updates: true,
   });
 }

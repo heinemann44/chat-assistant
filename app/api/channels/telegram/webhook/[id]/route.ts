@@ -1,9 +1,13 @@
 import { timingSafeEqual } from "node:crypto";
 
 import { NextResponse, type NextRequest } from "next/server";
+import type { Logger } from "pino";
 
 import { TelegramAdapter } from "@/lib/channels/telegram/adapter";
-import { parseTelegramUpdate } from "@/lib/channels/telegram/parse";
+import {
+  parseTelegramUpdate,
+  type ParsedUpdate,
+} from "@/lib/channels/telegram/parse";
 import { detectHandoffIntent } from "@/lib/core/handoff/detector";
 import {
   buildOwnerNotification,
@@ -20,6 +24,8 @@ import type { ConversationMessage } from "@/lib/core/types";
 import { DrizzleConfigRepo } from "@/lib/db/repos/config-repo";
 import { DrizzleConversationRepo } from "@/lib/db/repos/conversation-repo";
 import { DrizzleHandoffEventsRepo } from "@/lib/db/repos/handoff-events-repo";
+import { TelegramBusinessConnectionsRepo } from "@/lib/db/repos/telegram-business-connections-repo";
+import type { ChannelInstanceSummary } from "@/lib/core/ports/config-repo";
 import { getDecryptedSecret } from "@/lib/db/vault";
 import { createLLMProvider } from "@/lib/llm/factory";
 import { logger } from "@/lib/logger";
@@ -65,183 +71,285 @@ export async function POST(
 
     const body = (await request.json().catch(() => null)) as unknown;
     const parsed = parseTelegramUpdate(body);
-    if (parsed.kind !== "message") {
-      log.info({ reason: parsed.reason }, "ignored update");
-      return NextResponse.json({ ok: true });
-    }
 
-    const conversationRepo = new DrizzleConversationRepo();
-    const handoffEventsRepo = new DrizzleHandoffEventsRepo();
+    switch (parsed.kind) {
+      case "ignored":
+        log.info({ reason: parsed.reason }, "ignored update");
+        return NextResponse.json({ ok: true });
 
-    const [tone, llmConfig, faqs, handoffConfig, convo] = await Promise.all([
-      configRepo.getTone(channel.tenantId),
-      configRepo.getLlmConfig(channel.tenantId),
-      configRepo.getActiveFaqs(channel.tenantId),
-      configRepo.getHandoffConfig(channel.tenantId),
-      conversationRepo.getOrCreate({
-        tenantId: channel.tenantId,
-        channelInstanceId: channel.id,
-        externalUserId: parsed.incoming.externalUserId,
-        externalUserName: parsed.incoming.externalUserName ?? null,
-      }),
-    ]);
+      case "business_connection":
+        await handleBusinessConnection(parsed, channel, log);
+        return NextResponse.json({ ok: true });
 
-    const adapter = new TelegramAdapter(token);
-    const userMessage: ConversationMessage = {
-      role: "user",
-      text: parsed.incoming.text,
-      at: parsed.incoming.receivedAt.toISOString(),
-    };
-
-    // Lazy auto-resume: if the cron didn't get there yet, do it here so the
-    // current message is processed normally.
-    let state = convo.state;
-    if (state === "handoff_active") {
-      const resumed = await conversationRepo.resumeIfExpired(convo.id);
-      if (resumed) {
-        log.info({ conversation_id: convo.id }, "handoff auto-resumed");
-        state = "active";
-      }
-    }
-
-    // Still in active handoff → bot is muted. Record the user message and bail.
-    if (state === "handoff_active") {
-      await conversationRepo.appendMessages({
-        conversationId: convo.id,
-        messages: [userMessage],
-      });
-      log.info({ conversation_id: convo.id }, "muted: handoff active");
-      return NextResponse.json({ ok: true });
-    }
-
-    // Handoff trigger detection. Keyword-based, configured per tenant.
-    if (detectHandoffIntent(parsed.incoming.text, handoffConfig.triggerKeywords)) {
-      const handoffUntil = new Date(
-        Date.now() + handoffConfig.autoResumeMinutes * 60_000,
-      );
-      await conversationRepo.startHandoff({ conversationId: convo.id, handoffUntil });
-      await handoffEventsRepo.record({
-        conversationId: convo.id,
-        tenantId: channel.tenantId,
-        reason: "trigger keyword matched",
-      });
-
-      const notif = buildOwnerNotification({
-        externalUserName: parsed.incoming.externalUserName ?? null,
-        externalUserId: parsed.incoming.externalUserId,
-        reason: "Cliente solicitou atendimento humano",
-        recentMessages: [...convo.recentMessages, userMessage],
-        channelName: channel.name,
-      });
-      const dispatch = await dispatchHandoffNotification({
-        config: handoffConfig,
-        message: notif,
-        channelAdapter: adapter,
-        payload: {
-          tenantId: channel.tenantId,
-          channelInstanceId: channel.id,
-          conversationId: convo.id,
-          externalUserId: parsed.incoming.externalUserId,
-          externalUserName: parsed.incoming.externalUserName ?? null,
-        },
-      });
-      if (!dispatch.ok) {
-        log.warn({ reason: dispatch.reason }, "handoff notification not delivered");
-      }
-
-      await adapter.sendMessage(parsed.incoming.externalUserId, HANDOFF_USER_ACK);
-      await conversationRepo.appendMessages({
-        conversationId: convo.id,
-        messages: [
-          userMessage,
-          { role: "assistant", text: HANDOFF_USER_ACK, at: new Date().toISOString() },
-        ],
-      });
-
-      log.info({ conversation_id: convo.id }, "handoff triggered");
-      return NextResponse.json({ ok: true });
-    }
-
-    // Rate limit: 5 user messages in 10s = burst. Warn once per burst,
-    // then silently drop until the burst ends. Handoff already ran above —
-    // legitimate distress isn't blocked by this.
-    if (shouldRateLimit(convo.recentMessages, parsed.incoming.receivedAt)) {
-      const alreadyWarned = lastReplyWasRateLimitWarning(convo.recentMessages);
-      const appended: ConversationMessage[] = [userMessage];
-      if (!alreadyWarned) {
-        await adapter.sendMessage(parsed.incoming.externalUserId, RATE_LIMIT_WARNING);
-        appended.push({
-          role: "assistant",
-          text: RATE_LIMIT_WARNING,
-          at: new Date().toISOString(),
+      case "business_message": {
+        const bizRepo = new TelegramBusinessConnectionsRepo();
+        const connection = await bizRepo.findByConnectionId(parsed.businessConnectionId);
+        if (!connection) {
+          log.warn(
+            { business_connection_id: parsed.businessConnectionId },
+            "unknown business connection; skipping",
+          );
+          return NextResponse.json({ ok: true });
+        }
+        if (!connection.isEnabled) {
+          log.info(
+            { business_connection_id: parsed.businessConnectionId },
+            "business connection disabled; skipping",
+          );
+          return NextResponse.json({ ok: true });
+        }
+        // Owner replying manually in the chat the bot manages — never echo.
+        if (parsed.senderUserId !== null && parsed.senderUserId === connection.ownerUserId) {
+          log.info(
+            { business_connection_id: parsed.businessConnectionId },
+            "owner manual reply; skipping",
+          );
+          return NextResponse.json({ ok: true });
+        }
+        if (!connection.canReply) {
+          log.warn(
+            { business_connection_id: parsed.businessConnectionId },
+            "business connection lacks can_reply; skipping",
+          );
+          return NextResponse.json({ ok: true });
+        }
+        return await processConversation(parsed.incoming, {
+          channel,
+          token,
+          log,
+          businessConnectionId: parsed.businessConnectionId,
         });
       }
-      await conversationRepo.appendMessages({
-        conversationId: convo.id,
-        messages: appended,
-      });
-      log.info(
-        { conversation_id: convo.id, warned: !alreadyWarned },
-        "rate limited",
-      );
-      return NextResponse.json({ ok: true });
+
+      case "message":
+        return await processConversation(parsed.incoming, {
+          channel,
+          token,
+          log,
+          businessConnectionId: null,
+        });
     }
-
-    const llm = await createLLMProvider(llmConfig);
-    let result;
-    try {
-      result = await processMessage(
-        {
-          incoming: {
-            channel: "telegram",
-            channelInstanceId: channel.id,
-            externalUserId: parsed.incoming.externalUserId,
-            externalUserName: parsed.incoming.externalUserName,
-            text: parsed.incoming.text,
-            receivedAt: parsed.incoming.receivedAt,
-          },
-          tone,
-          systemExtras: llmConfig.systemExtras,
-          history: convo.recentMessages,
-          faqs,
-        },
-        { llm },
-      );
-    } catch (err) {
-      log.error({ err, provider: llm.name }, "LLM call failed; sending fallback");
-      await adapter
-        .sendMessage(
-          parsed.incoming.externalUserId,
-          "Desculpe, estou com problemas técnicos no momento. Tente novamente em alguns minutos.",
-        )
-        .catch((sendErr) => log.error({ err: sendErr }, "fallback sendMessage also failed"));
-      return NextResponse.json({ ok: false });
-    }
-
-    for (const reply of result.replies) {
-      await adapter.sendMessage(parsed.incoming.externalUserId, reply.text);
-    }
-
-    const turnNow = new Date().toISOString();
-    const appended: ConversationMessage[] = [
-      userMessage,
-      ...result.replies.map<ConversationMessage>((r) => ({
-        role: "assistant",
-        text: r.text,
-        at: turnNow,
-      })),
-    ];
-    await conversationRepo.appendMessages({
-      conversationId: convo.id,
-      messages: appended,
-    });
-
-    log.info({ intent: result.intent, replies: result.replies.length }, "processed message");
-    return NextResponse.json({ ok: true });
   } catch (err) {
     log.error({ err }, "webhook handler crashed");
     return NextResponse.json({ ok: false });
   }
+}
+
+async function handleBusinessConnection(
+  parsed: Extract<ParsedUpdate, { kind: "business_connection" }>,
+  channel: ChannelInstanceSummary,
+  log: Logger,
+): Promise<void> {
+  const bizRepo = new TelegramBusinessConnectionsRepo();
+  await bizRepo.upsert({
+    tenantId: channel.tenantId,
+    channelInstanceId: channel.id,
+    businessConnectionId: parsed.connection.businessConnectionId,
+    ownerUserId: parsed.connection.ownerUserId,
+    ownerUsername: parsed.connection.ownerUsername,
+    ownerFirstName: parsed.connection.ownerFirstName,
+    ownerLastName: parsed.connection.ownerLastName,
+    userChatId: parsed.connection.userChatId,
+    canReply: parsed.connection.canReply,
+    canRead: parsed.connection.canRead,
+    isEnabled: parsed.connection.isEnabled,
+    connectedAt: parsed.connection.connectedAt,
+  });
+  log.info(
+    {
+      business_connection_id: parsed.connection.businessConnectionId,
+      is_enabled: parsed.connection.isEnabled,
+      can_reply: parsed.connection.canReply,
+    },
+    "business connection upserted",
+  );
+}
+
+type ProcessContext = {
+  channel: ChannelInstanceSummary;
+  token: string;
+  log: Logger;
+  businessConnectionId: string | null;
+};
+
+async function processConversation(
+  incoming: Extract<ParsedUpdate, { kind: "message" }>["incoming"],
+  ctx: ProcessContext,
+): Promise<Response> {
+  const { channel, token, log, businessConnectionId } = ctx;
+  const configRepo = new DrizzleConfigRepo();
+  const conversationRepo = new DrizzleConversationRepo();
+  const handoffEventsRepo = new DrizzleHandoffEventsRepo();
+
+  const [tone, llmConfig, faqs, handoffConfig, convo] = await Promise.all([
+    configRepo.getTone(channel.tenantId),
+    configRepo.getLlmConfig(channel.tenantId),
+    configRepo.getActiveFaqs(channel.tenantId),
+    configRepo.getHandoffConfig(channel.tenantId),
+    conversationRepo.getOrCreate({
+      tenantId: channel.tenantId,
+      channelInstanceId: channel.id,
+      externalUserId: incoming.externalUserId,
+      externalUserName: incoming.externalUserName ?? null,
+      businessConnectionId,
+    }),
+  ]);
+
+  const adapter = new TelegramAdapter(
+    token,
+    businessConnectionId ? { businessConnectionId } : {},
+  );
+  const userMessage: ConversationMessage = {
+    role: "user",
+    text: incoming.text,
+    at: incoming.receivedAt.toISOString(),
+  };
+
+  // Lazy auto-resume: if the cron didn't get there yet, do it here so the
+  // current message is processed normally.
+  let state = convo.state;
+  if (state === "handoff_active") {
+    const resumed = await conversationRepo.resumeIfExpired(convo.id);
+    if (resumed) {
+      log.info({ conversation_id: convo.id }, "handoff auto-resumed");
+      state = "active";
+    }
+  }
+
+  // Still in active handoff → bot is muted. Record the user message and bail.
+  if (state === "handoff_active") {
+    await conversationRepo.appendMessages({
+      conversationId: convo.id,
+      messages: [userMessage],
+    });
+    log.info({ conversation_id: convo.id }, "muted: handoff active");
+    return NextResponse.json({ ok: true });
+  }
+
+  // Handoff trigger detection. Keyword-based, configured per tenant.
+  if (detectHandoffIntent(incoming.text, handoffConfig.triggerKeywords)) {
+    const handoffUntil = new Date(
+      Date.now() + handoffConfig.autoResumeMinutes * 60_000,
+    );
+    await conversationRepo.startHandoff({ conversationId: convo.id, handoffUntil });
+    await handoffEventsRepo.record({
+      conversationId: convo.id,
+      tenantId: channel.tenantId,
+      reason: "trigger keyword matched",
+    });
+
+    const notif = buildOwnerNotification({
+      externalUserName: incoming.externalUserName ?? null,
+      externalUserId: incoming.externalUserId,
+      reason: "Cliente solicitou atendimento humano",
+      recentMessages: [...convo.recentMessages, userMessage],
+      channelName: channel.name,
+    });
+    const dispatch = await dispatchHandoffNotification({
+      config: handoffConfig,
+      message: notif,
+      channelAdapter: adapter,
+      payload: {
+        tenantId: channel.tenantId,
+        channelInstanceId: channel.id,
+        conversationId: convo.id,
+        externalUserId: incoming.externalUserId,
+        externalUserName: incoming.externalUserName ?? null,
+      },
+    });
+    if (!dispatch.ok) {
+      log.warn({ reason: dispatch.reason }, "handoff notification not delivered");
+    }
+
+    await adapter.sendMessage(incoming.externalUserId, HANDOFF_USER_ACK);
+    await conversationRepo.appendMessages({
+      conversationId: convo.id,
+      messages: [
+        userMessage,
+        { role: "assistant", text: HANDOFF_USER_ACK, at: new Date().toISOString() },
+      ],
+    });
+
+    log.info({ conversation_id: convo.id }, "handoff triggered");
+    return NextResponse.json({ ok: true });
+  }
+
+  // Rate limit: 5 user messages in 10s = burst. Warn once per burst,
+  // then silently drop until the burst ends. Handoff already ran above —
+  // legitimate distress isn't blocked by this.
+  if (shouldRateLimit(convo.recentMessages, incoming.receivedAt)) {
+    const alreadyWarned = lastReplyWasRateLimitWarning(convo.recentMessages);
+    const appended: ConversationMessage[] = [userMessage];
+    if (!alreadyWarned) {
+      await adapter.sendMessage(incoming.externalUserId, RATE_LIMIT_WARNING);
+      appended.push({
+        role: "assistant",
+        text: RATE_LIMIT_WARNING,
+        at: new Date().toISOString(),
+      });
+    }
+    await conversationRepo.appendMessages({
+      conversationId: convo.id,
+      messages: appended,
+    });
+    log.info(
+      { conversation_id: convo.id, warned: !alreadyWarned },
+      "rate limited",
+    );
+    return NextResponse.json({ ok: true });
+  }
+
+  const llm = await createLLMProvider(llmConfig);
+  let result;
+  try {
+    result = await processMessage(
+      {
+        incoming: {
+          channel: "telegram",
+          channelInstanceId: channel.id,
+          externalUserId: incoming.externalUserId,
+          externalUserName: incoming.externalUserName,
+          text: incoming.text,
+          receivedAt: incoming.receivedAt,
+        },
+        tone,
+        systemExtras: llmConfig.systemExtras,
+        history: convo.recentMessages,
+        faqs,
+      },
+      { llm },
+    );
+  } catch (err) {
+    log.error({ err, provider: llm.name }, "LLM call failed; sending fallback");
+    await adapter
+      .sendMessage(
+        incoming.externalUserId,
+        "Desculpe, estou com problemas técnicos no momento. Tente novamente em alguns minutos.",
+      )
+      .catch((sendErr) => log.error({ err: sendErr }, "fallback sendMessage also failed"));
+    return NextResponse.json({ ok: false });
+  }
+
+  for (const reply of result.replies) {
+    await adapter.sendMessage(incoming.externalUserId, reply.text);
+  }
+
+  const turnNow = new Date().toISOString();
+  const appended: ConversationMessage[] = [
+    userMessage,
+    ...result.replies.map<ConversationMessage>((r) => ({
+      role: "assistant",
+      text: r.text,
+      at: turnNow,
+    })),
+  ];
+  await conversationRepo.appendMessages({
+    conversationId: convo.id,
+    messages: appended,
+  });
+
+  log.info({ intent: result.intent, replies: result.replies.length }, "processed message");
+  return NextResponse.json({ ok: true });
 }
 
 function secretsEqual(a: string, b: string): boolean {

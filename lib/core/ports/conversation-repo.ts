@@ -6,6 +6,7 @@ export type ConversationState = {
   channelInstanceId: string;
   externalUserId: string;
   externalUserName: string | null;
+  businessConnectionId: string | null;
   state: "active" | "handoff_active";
   handoffUntil: Date | null;
   recentMessages: ConversationMessage[];
@@ -16,6 +17,7 @@ export type GetOrCreateInput = {
   channelInstanceId: string;
   externalUserId: string;
   externalUserName?: string | null;
+  businessConnectionId?: string | null;
 };
 
 export type AppendMessagesInput = {

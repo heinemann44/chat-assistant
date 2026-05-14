@@ -4,6 +4,10 @@ import {
   deleteTelegramChannel,
   toggleChannelEnabled,
 } from "./actions";
+import {
+  ChannelBusinessSection,
+  type BusinessConnection,
+} from "./channel-business-section";
 
 type TelegramConfig = {
   bot_id?: number;
@@ -20,7 +24,17 @@ type ChannelRow = {
   config: { telegram?: TelegramConfig } | null;
 };
 
-export function ChannelList({ channels }: { channels: ChannelRow[] }) {
+type BusinessConnectionRow = BusinessConnection & {
+  channel_instance_id: string;
+};
+
+export function ChannelList({
+  channels,
+  businessConnections,
+}: {
+  channels: ChannelRow[];
+  businessConnections: BusinessConnectionRow[];
+}) {
   if (channels.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border bg-surface-2 p-8 text-center text-sm text-fg-muted">
@@ -33,6 +47,9 @@ export function ChannelList({ channels }: { channels: ChannelRow[] }) {
     <ul className="space-y-3">
       {channels.map((channel) => {
         const username = channel.config?.telegram?.username;
+        const connections = businessConnections.filter(
+          (c) => c.channel_instance_id === channel.id,
+        );
         return (
           <li
             key={channel.id}
@@ -84,6 +101,14 @@ export function ChannelList({ channels }: { channels: ChannelRow[] }) {
                 </form>
               </div>
             </div>
+
+            {channel.type === "telegram" ? (
+              <ChannelBusinessSection
+                channelId={channel.id}
+                botUsername={username}
+                connections={connections}
+              />
+            ) : null}
           </li>
         );
       })}

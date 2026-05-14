@@ -20,6 +20,9 @@
   --danger: #dc2626;
   --danger-soft: #fef2f2;
   --success: #15803d;
+  --success-soft: #f0fdf4;    /* green-50  */
+  --warning: #b45309;         /* amber-700 */
+  --warning-soft: #fffbeb;    /* amber-50  */
   --ring: #c7d2fe;            /* indigo-200 */
 }
 
@@ -40,6 +43,9 @@
   --danger: #f87171;
   --danger-soft: #2a1212;
   --success: #4ade80;
+  --success-soft: #0c1f12;
+  --warning: #fbbf24;         /* amber-400 */
+  --warning-soft: #2a1e0a;
   --ring: #4338ca;
 }
 
@@ -60,6 +66,9 @@
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
   --color-ring: var(--ring);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);

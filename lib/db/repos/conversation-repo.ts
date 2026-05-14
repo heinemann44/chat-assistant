@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, lte, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, lte, sql } from "drizzle-orm";
 
 import type {
   AppendMessagesInput,
@@ -16,10 +16,14 @@ const DEFAULT_WINDOW = 20;
 
 export class DrizzleConversationRepo implements ConversationRepo {
   async getOrCreate(input: GetOrCreateInput): Promise<ConversationState> {
+    const businessConnectionId = input.businessConnectionId ?? null;
     const existing = await db.query.conversations.findFirst({
       where: and(
         eq(conversations.channelInstanceId, input.channelInstanceId),
         eq(conversations.externalUserId, input.externalUserId),
+        businessConnectionId === null
+          ? isNull(conversations.businessConnectionId)
+          : eq(conversations.businessConnectionId, businessConnectionId),
       ),
     });
 
@@ -34,6 +38,7 @@ export class DrizzleConversationRepo implements ConversationRepo {
         channelInstanceId: input.channelInstanceId,
         externalUserId: input.externalUserId,
         externalUserName: input.externalUserName ?? null,
+        businessConnectionId,
       })
       .returning();
 
@@ -105,6 +110,7 @@ function toState(row: typeof conversations.$inferSelect): ConversationState {
     channelInstanceId: row.channelInstanceId,
     externalUserId: row.externalUserId,
     externalUserName: row.externalUserName,
+    businessConnectionId: row.businessConnectionId,
     state: row.state as ConversationState["state"],
     handoffUntil: row.handoffUntil,
     recentMessages: (row.lastMessages as unknown as ConversationMessage[]) ?? [],

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   index,
@@ -146,6 +147,7 @@ export const conversations = pgTable(
       .references(() => channelInstances.id, { onDelete: "cascade" }),
     externalUserId: text("external_user_id").notNull(),
     externalUserName: text("external_user_name"),
+    businessConnectionId: text("business_connection_id"),
     lastMessages: jsonb("last_messages").notNull().default(sql`'[]'::jsonb`),
     state: text("state").notNull().default("active"),
     handoffUntil: timestamp("handoff_until", { withTimezone: true }),
@@ -154,8 +156,41 @@ export const conversations = pgTable(
   },
   (t) => [
     check("conversations_state_check", sql`${t.state} IN ('active', 'handoff_active')`),
-    unique("uq_conversations_channel_user").on(t.channelInstanceId, t.externalUserId),
+    unique("uq_conversations_channel_user_connection")
+      .on(t.channelInstanceId, t.externalUserId, t.businessConnectionId)
+      .nullsNotDistinct(),
     index("idx_conversations_tenant_id").on(t.tenantId),
+  ],
+);
+
+// Telegram Business: links a bot to a personal account it manages on behalf of.
+// One row per active (or historical) connection; webhook upserts on lifecycle events.
+export const telegramBusinessConnections = pgTable(
+  "telegram_business_connections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    channelInstanceId: uuid("channel_instance_id")
+      .notNull()
+      .references(() => channelInstances.id, { onDelete: "cascade" }),
+    businessConnectionId: text("business_connection_id").notNull().unique(),
+    ownerUserId: bigint("owner_user_id", { mode: "number" }).notNull(),
+    ownerUsername: text("owner_username"),
+    ownerFirstName: text("owner_first_name"),
+    ownerLastName: text("owner_last_name"),
+    canReply: boolean("can_reply").notNull().default(false),
+    canRead: boolean("can_read").notNull().default(false),
+    isEnabled: boolean("is_enabled").notNull().default(true),
+    dcId: integer("dc_id"),
+    connectedAt: timestamp("connected_at", { withTimezone: true }).notNull().defaultNow(),
+    disconnectedAt: timestamp("disconnected_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_tg_business_connections_tenant_id").on(t.tenantId),
+    index("idx_tg_business_connections_channel_instance_id").on(t.channelInstanceId),
   ],
 );
 
